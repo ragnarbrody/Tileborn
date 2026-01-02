@@ -5,6 +5,7 @@ from paths import UI_ICONS, BUILDINGS_ICONS, BUILDINGS_TILES, TILES_DIR, FONTS_D
 class BuildingType:
     HOUSE = "house"
     SAWMILL = "sawmill"
+    TOWNHALL = "townhall"
 
 class BuildingInstance:
     def __init__(self, building_type, x, y, sprite):
@@ -12,10 +13,6 @@ class BuildingInstance:
         self.x = x
         self.y = y
         self.sprite = sprite
-
-BUILDING_COLORS = {
-    BuildingType.HOUSE: (180, 180, 180),
-}
 
 BUILDING_DATA = {
     BuildingType.HOUSE: {
@@ -42,5 +39,18 @@ BUILDING_DATA = {
         "description": "A place to get some wood.",
         "icon": BUILDINGS_ICONS / "sawmill.png",
         "sprite": BUILDINGS_TILES / "sawmill_1.png",
-    }
+    },
+
+    BuildingType.TOWNHALL: {
+        "name": "Town Hall",
+        "size": (8, 6),
+        "cost": {
+            ResourceType.WOOD: 40,
+            ResourceType.STONE: 20,
+        },
+        "unlocked": True,
+        "description": "A place where the town is administrated.",
+        "icon": BUILDINGS_ICONS / "townhall.png",
+        "sprite": BUILDINGS_TILES / "townhall_1.png",
+    },
 }

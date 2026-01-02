@@ -5,8 +5,8 @@ from resources import ResourceType
 class GameState:
     def __init__(self):
         self.resources = {
-            ResourceType.WOOD: 50,
-            ResourceType.STONE: 30,
+            ResourceType.WOOD: 100,
+            ResourceType.STONE: 100,
             ResourceType.FOOD: 100,
             ResourceType.GOLD: 20,
         }
