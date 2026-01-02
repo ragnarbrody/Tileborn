@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from resources import ResourceType
+from paths import UI_ICONS, BUILDINGS_ICONS, TILES_DIR, FONTS_DIR
 
 class BuildingType:
     HOUSE = "house"
@@ -18,7 +19,7 @@ BUILDING_DATA = {
         },
         "unlocked": True,  # futuramente vem da pesquisa
         "description": "A home for your inhabitants.",
-        "icon": "buildings/house.png"
+        "icon": (BUILDINGS_ICONS / "house.png")
     },
     BuildingType.SAWMILL: {
         "name": "Sawmill",
@@ -28,6 +29,6 @@ BUILDING_DATA = {
         },
         "unlocked": True,
         "description": "A place to get some wood.",
-        "icon": "buildings/sawmill.png"
+        "icon": (BUILDINGS_ICONS / "sawmill.png")
     }
 }

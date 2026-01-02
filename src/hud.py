@@ -5,6 +5,7 @@ from settings import LOGICAL_WIDTH, LOGICAL_HEIGHT
 from resources import ResourceType
 from buildings import BUILDING_DATA
 import math
+from paths import UI_ICONS, BUILDINGS_ICONS, TILES_DIR, FONTS_DIR
 
 class HUD:
     def __init__(self):
@@ -22,7 +23,7 @@ class HUD:
 
         self.pulse_time = 0.0
 
-        self.build_icon = pygame.image.load("./icons/hammer.png").convert_alpha()
+        self.build_icon = pygame.image.load(UI_ICONS / "hammer.png").convert_alpha()
         self.build_icon = pygame.transform.scale(
             self.build_icon, (self.icon_size, self.icon_size)
         )
@@ -74,7 +75,7 @@ class HUD:
             if not data["unlocked"]:
                 continue
 
-            icon = pygame.image.load(f"./icons/{data['icon']}").convert_alpha()
+            icon = pygame.image.load(f"{data['icon']}").convert_alpha()
             icon = pygame.transform.scale(icon, (self.icon_size, self.icon_size))
 
             rect = pygame.Rect(

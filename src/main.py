@@ -12,6 +12,7 @@ from display import DisplayManager
 from game_mode import GameMode
 from buildings import BuildingType
 from game_state import GameState
+from paths import UI_ICONS, BUILDINGS_ICONS, TILES_DIR, FONTS_DIR
 
 
 def main():
