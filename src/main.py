@@ -17,7 +17,7 @@ from paths import UI_ICONS, BUILDINGS_ICONS, TILES_DIR, FONTS_DIR
 
 def main():
     pygame.init()
-    pygame.display.set_caption("Py_nished")
+    pygame.display.set_caption("Tileborn")
 
     clock = pygame.time.Clock()
 

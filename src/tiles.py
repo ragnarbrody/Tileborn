@@ -1,13 +1,22 @@
 # -*- coding: utf-8 -*-
 
+import pygame
+from paths import UI_ICONS, BUILDINGS_ICONS, TILES_DIR, FONTS_DIR
+
 class TileType:
-    GRASS = 0
-    WATER = 1
-    FOREST = 2
+    GRASS = "grass"
+    WATER = "water"
+    SAND = "sand"   # futuro
+    SNOW = "snow"   # futuro
 
 
-TILE_COLORS = {
-    TileType.GRASS: (80, 180, 80),
-    TileType.WATER: (50, 100, 200),
-    TileType.FOREST: (20, 120, 20),
+TILE_DATA = {
+    TileType.GRASS: {
+        "walkable": True,
+        "sprite": TILES_DIR / "grass_2.png"
+    },
+    TileType.WATER: {
+        "walkable": False,
+        "sprite": TILES_DIR / "water_1.png"
+    },
 }

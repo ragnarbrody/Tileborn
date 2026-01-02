@@ -8,7 +8,6 @@ from settings import (
     WINDOW_HEIGHT
 )
 
-
 class DisplayManager:
     def __init__(self):
         self.window = pygame.display.set_mode(

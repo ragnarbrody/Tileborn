@@ -35,7 +35,7 @@ class HUD:
         # Animação do menu hambúrguer
         self.top_menu_width = 140
         self.top_menu_option_height = 28
-        self.top_menu_options = ["Salvar", "Opções", "Sair"]
+        self.top_menu_options = ["Save", "Options", "Quit"]
 
         self.top_menu_height = len(self.top_menu_options) * self.top_menu_option_height
 
@@ -259,9 +259,7 @@ class HUD:
         padding = 8
         line_spacing = 4
 
-        # ==========================
         # PRÉ-RENDER DOS TEXTOS
-        # ==========================
         title_font = pygame.font.SysFont(None, 26)
         title_surf = title_font.render(data["name"], True, (255, 255, 255))
 
@@ -277,9 +275,7 @@ class HUD:
             text = f"{res.capitalize()}: {amount} / {current}"
             lines.append(self.font.render(text, True, color))
 
-        # ==========================
         # CALCULAR TAMANHO DO FUNDO
-        # ==========================
         width = max(
             title_surf.get_width(),
             max(line.get_width() for line in lines)
@@ -292,23 +288,17 @@ class HUD:
             + padding * 2
         )
 
-        # ==========================
         # POSIÇÃO
-        # ==========================
         x = 10
         y = self.rect.y - height - 10  # acima do HUD
 
-        # ==========================
         # FUNDO TRANSLÚCIDO
-        # ==========================
         bg = pygame.Surface((width, height), pygame.SRCALPHA)
         bg.fill((60, 60, 60, 180))  # cinza com alpha
 
         surface.blit(bg, (x, y))
 
-        # ==========================
         # DESENHAR TEXTOS
-        # ==========================
         draw_y = y + padding
         surface.blit(title_surf, (x + padding, draw_y))
         draw_y += title_surf.get_height() + line_spacing
@@ -321,16 +311,13 @@ class HUD:
         self.expanded = not self.expanded
 
     def draw_top_bar(self, surface, game_state):
-        # ==========================
+
         # FUNDO DA BARRA
-        # ==========================
         bg = pygame.Surface((LOGICAL_WIDTH, self.top_bar_height), pygame.SRCALPHA)
         bg.fill((50, 50, 50, self.top_bar_alpha))
         surface.blit(bg, (0, 0))
 
-        # ==========================
         # RECURSOS (ESQUERDA)
-        # ==========================
         x = 10
         y = (self.top_bar_height - self.font.get_height()) // 2
 
@@ -347,9 +334,7 @@ class HUD:
             surface.blit(img, (x, y))
             x += img.get_width() + 20
 
-        # ==========================
         # BOTÃO HAMBURGUER (DIREITA)
-        # ==========================
         self.menu_button_rect.topleft = (
             LOGICAL_WIDTH - self.menu_button_size - 10,
             (self.top_bar_height - self.menu_button_size) // 2
@@ -357,9 +342,7 @@ class HUD:
 
         self.draw_hamburger_button(surface, self.menu_button_rect)
 
-        # ==========================
         # MENU EXPANSÍVEL
-        # ==========================
         if self.menu_open:
             self.draw_top_menu(surface)
 
