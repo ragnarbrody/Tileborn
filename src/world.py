@@ -11,18 +11,23 @@ from decorations import Tree
 
 class World:
     def __init__(self):
+        self.width = MAP_WIDTH
+        self.height = MAP_HEIGHT
         self.buildings = [] # lista de BuildingInstance
         self.occupied_tiles = set()  # tiles ocupados
         self.decorations = []  # árvores, pedras etc
         self.tile_sprites = {}
+        self.tile_variants = [[None for _ in range(self.width)]
+                      for _ in range(self.height)]
+
+        self.tile_sprites = {}
 
         for tile, data in TILE_DATA.items():
-            img = pygame.image.load(data["sprite"]).convert_alpha()
-            self.tile_sprites[tile] = pygame.transform.scale(
-                img, (TILE_SIZE, TILE_SIZE)
-            )
-        self.width = MAP_WIDTH
-        self.height = MAP_HEIGHT
+            self.tile_sprites[tile] = []
+            for sprite_path in data["sprites"]:
+                img = pygame.image.load(sprite_path).convert_alpha()
+                img = pygame.transform.scale(img, (TILE_SIZE, TILE_SIZE))
+                self.tile_sprites[tile].append(img)
         self.grid = [[TileType.GRASS for _ in range(self.width)]
                      for _ in range(self.height)]
 
@@ -32,6 +37,14 @@ class World:
     def generate(self):
         self.generate_river()
         self.generate_forests()
+        self.assign_tile_variants()
+
+    def assign_tile_variants(self):
+        for y in range(self.height):
+            for x in range(self.width):
+                tile = self.grid[y][x]
+                sprites = TILE_DATA[tile]["sprites"]
+                self.tile_variants[y][x] = random.choice(sprites)
 
     def generate_river(self):
         x = random.randint(0, self.width - 1)
@@ -100,7 +113,11 @@ class World:
                     world_y = y * TILE_SIZE
                     screen_x, screen_y = camera.apply(world_x, world_y)
 
-                    sprite = self.tile_sprites[tile]
+                    variant_path = self.tile_variants[y][x]
+                    sprites = TILE_DATA[tile]["sprites"]
+                    index = sprites.index(variant_path)
+
+                    sprite = self.tile_sprites[tile][index]
                     surface.blit(sprite, (screen_x, screen_y))
 
         # --- DESENHAR DECORAÇÕES (árvores etc) ---
