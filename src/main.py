@@ -6,6 +6,7 @@ from settings import FPS, MAP_WIDTH, MAP_HEIGHT, TILE_SIZE, MIN_HEIGHT, MIN_WIDT
 from hud import HUD
 from input_actions import is_action_pressed
 from input_utils import mouse_to_tile, get_line_tiles
+from utils  import reload_all_texts
 from camera import Camera
 from world import World
 from display import DisplayManager
@@ -13,6 +14,7 @@ from game_mode import GameMode
 from buildings import BuildingType
 from game_state import GameState
 from paths import UI_ICONS, BUILDINGS_ICONS, TILES_DIR, FONTS_DIR
+from i18n import i18n
 
 
 def main():
@@ -92,6 +94,23 @@ def main():
 
                     # clique esquerdo
                     elif event.button == 1:
+                        # SEMPRE processa popup de opções primeiro se estiver aberto
+                        if hud.options_popup_open:
+                            result = hud.handle_click(mouse_pos)
+                            # Se o clique fechou o popup ou foi dentro dele, não passa para o mundo
+                            if result in ["options_closed", "options_popup_click", 
+                                          "open_language_selector", "language_selector_closed",
+                                          "language_selector_click"]:
+                                
+                                # Verifica se mudou o idioma
+                                if result and result.startswith("language_changed_to_"):
+                                    #
+                                    reload_all_texts(hud)
+                                    world.update_building_data()
+                                    continue
+
+                                continue
+
                         # Fecha menu hambúrguer ao clicar fora
                         if hud.menu_open and not hud.is_mouse_over_ui(mouse_pos):
                             hud.close_top_menu()

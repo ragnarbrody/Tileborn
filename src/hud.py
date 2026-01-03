@@ -4,15 +4,13 @@ import pygame
 from resources import ResourceType, RESOURCE_DATA
 from buildings import BUILDING_DATA
 import math
-from paths import UI_ICONS, BUILDINGS_ICONS, TILES_DIR, FONTS_DIR
+from paths import UI_ICONS, BUILDINGS_ICONS, TILES_DIR, FONTS_DIR, LOCALES_DIR
+from utils import reload_all_texts
 
 class HUD:
     def __init__(self):
-        # popup
-        self.options_popup_open = False
-        self.options_popup_rect = pygame.Rect(0, 0, 300, 200)  # largura x altura do popup
-        self.options_popup_alpha = 200
-
+        from i18n import i18n
+        self.i18n = i18n
         self.build_menu_open = False
         self.height = 80
         self.visible = True
@@ -47,7 +45,11 @@ class HUD:
         # Animação do menu hambúrguer
         self.top_menu_width = 140
         self.top_menu_option_height = 28
-        self.top_menu_options = ["Save", "Options", "Quit"]
+        self.top_menu_options = [
+            self.i18n.get("menu.save", "Save"),
+            self.i18n.get("menu.options", "Options"),
+            self.i18n.get("menu.quit", "Quit")
+        ]
 
         self.top_menu_height = len(self.top_menu_options) * self.top_menu_option_height
 
@@ -60,6 +62,43 @@ class HUD:
         self.menu_button_rect = pygame.Rect(0, 0, self.menu_button_size, self.menu_button_size)
 
         self.menu_open = False
+        # Popup de opções
+        self.options_popup_open = False
+        self.options_popup_alpha = 210
+
+        # Sistema de abas do menu de opções
+        self.options_tab_keys = ["general", "display", "audio"]
+        self.current_options_tab_key = "general"  # Armazena a chave
+
+        # Opções de idioma disponíveis
+        self.available_languages = self.i18n.get_available_languages()
+        self.selected_language = self.i18n.current_lang
+        
+        # Dados para cada aba (agora dinâmicos)
+        self.tab_content = {
+            self.i18n.get("options.general", "General"): [
+                self.i18n.get("options.language", "Language"),
+                self.i18n.get("options.auto_save", "Auto-save frequency"),
+                self.i18n.get("options.game_settings", "Game settings")
+            ],
+            self.i18n.get("options.display", "Display"): [
+                self.i18n.get("ui.resolution", "Resolution"),
+                self.i18n.get("ui.fullscreen", "Fullscreen"),
+                self.i18n.get("ui.vsync", "VSync")
+            ],
+            self.i18n.get("options.audio", "Audio"): [
+                self.i18n.get("ui.master_volume", "Master volume"),
+                self.i18n.get("ui.music_volume", "Music volume"),
+                self.i18n.get("ui.sound_effects", "Sound effects")
+            ]
+        }
+        
+        self.tab_button_height = 30
+        self.tab_button_padding = 10
+
+        # Controla se estamos selecionando idioma
+        self.selecting_language = False
+        self.language_buttons = []
 
         self.rect = pygame.Rect(0, 0, 1, self.height)
 
@@ -68,6 +107,46 @@ class HUD:
         self.create_main_buttons()
         self.create_build_buttons()
         self.hover_tooltip = None
+
+    def get_options_tabs_texts(self):
+        """Retorna os textos das abas traduzidos"""
+        return [
+            self.i18n.get("options.general", "General"),
+            self.i18n.get("options.display", "Display"),
+            self.i18n.get("options.audio", "Audio")
+        ]
+    
+    def get_current_tab_text(self):
+        """Retorna o texto da aba atual traduzido"""
+        if self.current_options_tab_key == "general":
+            return self.i18n.get("options.general", "General")
+        elif self.current_options_tab_key == "display":
+            return self.i18n.get("options.display", "Display")
+        elif self.current_options_tab_key == "audio":
+            return self.i18n.get("options.audio", "Audio")
+        return self.i18n.get("options.general", "General")
+    
+    def get_tab_content(self, tab_key):
+        """Retorna o conteúdo da aba traduzido"""
+        if tab_key == "general":
+            return [
+                self.i18n.get("options.language", "Language"),
+                self.i18n.get("options.auto_save", "Auto-save frequency"),
+                self.i18n.get("options.game_settings", "Game settings")
+            ]
+        elif tab_key == "display":
+            return [
+                self.i18n.get("ui.resolution", "Resolution"),
+                self.i18n.get("ui.fullscreen", "Fullscreen"),
+                self.i18n.get("ui.vsync", "VSync")
+            ]
+        elif tab_key == "audio":
+            return [
+                self.i18n.get("ui.master_volume", "Master volume"),
+                self.i18n.get("ui.music_volume", "Music volume"),
+                self.i18n.get("ui.sound_effects", "Sound effects")
+            ]
+        return [] 
         
     def create_build_buttons(self):
         self.build_buttons.clear()
@@ -202,6 +281,95 @@ class HUD:
         self.draw_options_popup(surface)
 
     def handle_click(self, mouse_pos):
+        # SEMPRE processa popup de opções primeiro se estiver aberto
+        if self.options_popup_open:
+            popup_rect = self.get_options_popup_rect(pygame.display.get_surface())
+
+            # Se estiver selecionando idioma, processa primeiro
+            if self.selecting_language:
+                # Calcular posição do seletor de idioma
+                selector_width = 200
+                selector_height = 120
+                selector_x = popup_rect.x + (popup_rect.width - selector_width) // 2
+                selector_y = popup_rect.y + (popup_rect.height - selector_height) // 2
+                
+                selector_rect = pygame.Rect(selector_x, selector_y, selector_width, selector_height)
+                
+                # Se clicou fora do seletor, fecha o seletor
+                if not selector_rect.collidepoint(mouse_pos):
+                    self.selecting_language = False
+                    return "language_selector_closed"
+                
+                # Verifica cliques nos botões de idioma
+                button_height = 30
+                button_y = selector_y + 40
+                
+                for i, lang_code in enumerate(self.available_languages):
+                    button_rect = pygame.Rect(
+                        selector_x + 20,
+                        button_y + i * (button_height + 5),
+                        selector_width - 40,
+                        button_height
+                    )
+                    
+                    if button_rect.collidepoint(mouse_pos):
+                        if lang_code != self.selected_language:
+                            self.selected_language = lang_code
+                            self.i18n.load_language(lang_code)
+                            reload_all_texts(self)
+                        self.selecting_language = False
+                        return f"language_changed_to_{lang_code}"
+                
+                return "language_selector_click"
+            
+            # clicou fora → fecha
+            if not popup_rect.collidepoint(mouse_pos):
+                self.options_popup_open = False
+                self.selecting_language = False
+                return "options_closed"
+            
+            # Verifica clique nas abas
+            popup_x, popup_y = popup_rect.topleft
+            popup_width, popup_height = popup_rect.size
+            tabs_height = 40
+
+            # Obter textos das abas para calcular posições
+            tab_texts = self.get_options_tabs_texts()
+            
+            # Calcular posição e tamanho das abas
+            if tab_texts:
+                tab_width = (popup_width - (len(tab_texts) + 1) * self.tab_button_padding) // len(tab_texts)
+            else:
+                tab_width = 100
+            
+            for i, tab_text in enumerate(tab_texts):
+                x = popup_x + self.tab_button_padding + i * (tab_width + self.tab_button_padding)
+                y = popup_y + 5
+                tab_rect = pygame.Rect(x, y, tab_width, tabs_height - 10)
+                
+                if tab_rect.collidepoint(mouse_pos):
+                    # Usa a chave da aba, não o texto
+                    self.current_options_tab_key = self.options_tab_keys[i]
+                    self.selecting_language = False
+                    return f"options_tab_{self.current_options_tab_key}"
+            
+            # Verifica clique no botão de idioma (se estiver na aba General)
+            if self.current_options_tab_key == "general" and hasattr(self, 'language_button_rect'):
+                # Converter coordenadas relativas do popup para coordenadas da tela
+                lang_button_rect_screen = pygame.Rect(
+                    popup_x + self.language_button_rect.x,
+                    popup_y + self.language_button_rect.y,
+                    self.language_button_rect.width,
+                    self.language_button_rect.height
+                )
+                
+                if lang_button_rect_screen.collidepoint(mouse_pos):
+                    self.selecting_language = True
+                    return "open_language_selector"
+            
+            # clicou dentro do popup (mas não em uma aba) → bloqueia clique pro jogo
+            return "options_popup_click"
+
         if self.menu_button_rect.collidepoint(mouse_pos):
             self.menu_open = not self.menu_open
 
@@ -235,14 +403,23 @@ class HUD:
                     x, y + i * self.top_menu_option_height, width, self.top_menu_option_height
                 )
                 if option_rect.collidepoint(mouse_pos):
-                    if option == "Options":
-                        self.options_popup_open = True
-                    elif option == "Quit":
+                    if option == self.i18n.get("menu.options", "Options"):
+                        self.open_options()
+                        self.menu_open = False
+                        self.top_menu_target_y = -self.top_menu_height
+                        return "menu_options_clicked"
+                    elif self.i18n.get("menu.quit", "Quit"):
                         pygame.event.post(pygame.event.Event(pygame.QUIT))
-                    # você pode adicionar "Save" depois
-                    return f"menu_{option.lower()}_clicked"
+                        return "menu_quit_clicked"  
+                    elif option == self.i18n.get("menu.save", "Save"):
+                        #
+                        return "menu_save_clicked"
 
         return None
+    
+    def open_options(self):
+        self.options_popup_open = True
+        self.current_options_tab_key = "general" # Reseta para aba padrão
     
     def close_top_menu(self):
         self.menu_open = False
@@ -251,6 +428,10 @@ class HUD:
     def is_mouse_over_ui(self, mouse_pos):
         if not mouse_pos:
             return False
+        
+        # Se popup de opções estiver aberto, considera TODO o clique como UI
+        if self.options_popup_open:
+            return True
 
         # Barra superior
         top_bar_rect = pygame.Rect(
@@ -285,24 +466,243 @@ class HUD:
 
         return False
     
+    def update_language_texts(self):
+        """Atualiza todos os textos quando o idioma muda"""
+        # Atualiza menu hamburguer
+        self.top_menu_options = [
+            self.i18n.get("menu.save", "Save"),
+            self.i18n.get("menu.options", "Options"),
+            self.i18n.get("menu.quit", "Quit")
+        ]
+    
     def is_build_menu_open(self):
         return self.build_menu_open
+    
+    def get_options_popup_rect(self, surface):
+        screen_width, screen_height = surface.get_size()
+
+        width = int(screen_width * 0.6)
+        height = int(screen_height * 0.6)
+
+        x = (screen_width - width) // 2
+        y = (screen_height - height) // 2
+
+        return pygame.Rect(x, y, width, height)
 
     def draw_options_popup(self, surface):
         if not self.options_popup_open:
             return
 
-        # centraliza na tela
-        screen_width, screen_height = surface.get_size()
-        self.options_popup_rect.center = (screen_width // 2, screen_height // 2)
+        popup_rect = self.get_options_popup_rect(surface)
+        popup_width, popup_height = popup_rect.size
+        
+        # Fundo principal
+        popup_surf = pygame.Surface(popup_rect.size, pygame.SRCALPHA)
+        popup_surf.fill((50, 50, 50, self.options_popup_alpha))
 
-        popup_surf = pygame.Surface(self.options_popup_rect.size, pygame.SRCALPHA)
-        popup_surf.fill((50, 50, 50, self.options_popup_alpha))  # cinza semi-transparente
+        # Área das abas (no topo do popup)
+        tabs_height = 40
+        tabs_area = pygame.Rect(0, 0, popup_width, tabs_height)
+        
+        # Desenhar fundo das abas
+        pygame.draw.rect(popup_surf, (60, 60, 60, 200), tabs_area)
+        pygame.draw.rect(popup_surf, (80, 80, 80), tabs_area, 1)
+        
+        # Calcular largura das abas
+        if self.options_tab_keys:  # Evita divisão por zero
+            tab_width = (popup_width - (len(self.options_tab_keys) + 1) * self.tab_button_padding) // len(self.options_tab_keys)
+        else:
+            tab_width = 100
+        
+        # Desenhar abas
+        for i, tab_name in enumerate(self.options_tab_keys):
+            x = self.tab_button_padding + i * (tab_width + self.tab_button_padding)
+            tab_rect = pygame.Rect(x, 5, tab_width, tabs_height - 10)
+            
+            # Cor da aba ativa/inativa
+            if tab_name == self.current_options_tab_key:
+                color = (70, 130, 180)  # Azul para aba ativa
+                text_color = (255, 255, 255)
+            else:
+                color = (80, 80, 80)  # Cinza para aba inativa
+                text_color = (200, 200, 200)
+            
+            # Fundo da aba
+            pygame.draw.rect(popup_surf, color, tab_rect, border_radius=4)
+            pygame.draw.rect(popup_surf, (100, 100, 100), tab_rect, 1, border_radius=4)
+            
+            # Texto da aba
+            tab_font = pygame.font.SysFont(None, 20)
+            tab_text = tab_font.render(tab_name, True, text_color)
+            text_rect = tab_text.get_rect(center=tab_rect.center)
+            popup_surf.blit(tab_text, text_rect)
+        
+        # Área de conteúdo (abaixo das abas)
+        content_area = pygame.Rect(
+            0, 
+            tabs_height, 
+            popup_width, 
+            popup_height - tabs_height
+        )
+        
+        # Desenhar fundo da área de conteúdo
+        pygame.draw.rect(popup_surf, (40, 40, 40, 180), content_area)
+        pygame.draw.rect(popup_surf, (70, 70, 70), content_area, 1)
+        
+        # Desenhar conteúdo da aba atual
+        content_padding = 20
+        current_y = tabs_height + content_padding
+        
+        title_font = pygame.font.SysFont(None, 24)
+        option_font = pygame.font.SysFont(None, 20)
+        
+        # Título da aba
+        current_tab_text = self.get_current_tab_text()
+        if self.current_options_tab_key == "general":
+            title_text = title_font.render(self.i18n.get("ui.general_settings", "General Settings"), True, (255, 255, 255))
+        elif self.current_options_tab_key == "display":
+            title_text = title_font.render(self.i18n.get("ui.display_settings", "Display Settings"), True, (255, 255, 255))
+        elif self.current_options_tab_key == "audio":
+            title_text = title_font.render(self.i18n.get("ui.audio_settings", "Audio Settings"), True, (255, 255, 255))
+        else:
+            title_text = title_font.render(f"{current_tab_text} Settings", True, (255, 255, 255))
+        
+        popup_surf.blit(title_text, (content_padding, current_y))
+        current_y += title_text.get_height() + 15
+        
+        # Conteúdo específico da aba
+        if self.current_options_tab_key == "general":
+            # Desenhar opção de idioma especial
+            lang_text = option_font.render(self.i18n.get("options.language", "Language") + ":", True, (220, 220, 220))
+            popup_surf.blit(lang_text, (content_padding, current_y))
+            
+            # Botão para selecionar idioma
+            lang_button_width = 100
+            self.language_button_rect = pygame.Rect(  # Salva para clique
+                content_padding + 150,
+                current_y - 5,
+                lang_button_width,
+                25
+            )
+            
+            # Exibir idioma atual
+            lang_name = "English" if self.selected_language == "en" else "Português"
+            lang_button_text = option_font.render(lang_name, True, (255, 255, 255))
+            
+            # Desenhar botão
+            pygame.draw.rect(popup_surf, (80, 80, 80), self.language_button_rect, border_radius=4)
+            pygame.draw.rect(popup_surf, (120, 120, 120), self.language_button_rect, 1, border_radius=4)
+            text_rect = lang_button_text.get_rect(center=self.language_button_rect.center)
+            popup_surf.blit(lang_button_text, text_rect)
+            
+            current_y += 35
+            
+            # Outras opções da aba General
+            tab_content = self.get_tab_content("general")
+            for option_text in tab_content:
+                if option_text != self.i18n.get("options.language", "Language"):
+                    # Checkbox/indicator (círculo simples)
+                    indicator_radius = 5
+                    pygame.draw.circle(
+                        popup_surf, 
+                        (100, 150, 200), 
+                        (content_padding + 10, current_y + 10), 
+                        indicator_radius
+                    )
+                    
+                    # Texto da opção
+                    option_surface = option_font.render(option_text, True, (220, 220, 220))
+                    popup_surf.blit(option_surface, (content_padding + 25, current_y))
+                    current_y += option_surface.get_height() + 12
+        else:
+            # Para outras abas, desenhar normalmente
+            tab_content = self.get_tab_content(self.current_options_tab_key)
+            for option_text in tab_content:
+                # Checkbox/indicator (círculo simples)
+                indicator_radius = 5
+                pygame.draw.circle(
+                    popup_surf, 
+                    (100, 150, 200), 
+                    (content_padding + 10, current_y + 10), 
+                    indicator_radius
+                )
+                
+                # Texto da opção
+                option_surface = option_font.render(option_text, True, (220, 220, 220))
+                popup_surf.blit(option_surface, (content_padding + 25, current_y))
+                current_y += option_surface.get_height() + 12
+        
+        # Mensagem de placeholder
+        placeholder_font = pygame.font.SysFont(None, 18)
+        placeholder_text = self.i18n.get("ui.settings_will_be_implemented", "Settings will be implemented soon...")
+        placeholder_surface = placeholder_font.render(placeholder_text, True, (150, 150, 150))
+        popup_surf.blit(
+            placeholder_surface, 
+            (
+                popup_width // 2 - placeholder_surface.get_width() // 2,
+                popup_height - 30
+            )
+        )
 
-        # borda
-        pygame.draw.rect(popup_surf, (200, 200, 200), popup_surf.get_rect(), 2)
+        # Desenhar seletor de idioma se estiver ativo
+        if self.selecting_language:
+            self.draw_language_selector(popup_surf, popup_rect)
+        
+        # Borda externa
+        pygame.draw.rect(
+            popup_surf,
+            (200, 200, 200),
+            popup_surf.get_rect(),
+            2,
+            border_radius=8
+        )
 
-        surface.blit(popup_surf, self.options_popup_rect.topleft)
+        surface.blit(popup_surf, popup_rect.topleft)
+
+    def draw_language_selector(self, popup_surf, popup_rect):
+        """Desenha um popup para selecionar idioma"""
+        selector_width = 200
+        selector_height = 120
+        selector_x = (popup_rect.width - selector_width) // 2
+        selector_y = (popup_rect.height - selector_height) // 2
+        
+        # Fundo do seletor
+        selector_rect = pygame.Rect(selector_x, selector_y, selector_width, selector_height)
+        pygame.draw.rect(popup_surf, (30, 30, 40, 240), selector_rect, border_radius=8)
+        pygame.draw.rect(popup_surf, (100, 100, 150), selector_rect, 2, border_radius=8)
+        
+        # Título
+        title_font = pygame.font.SysFont(None, 22)
+        title = title_font.render("Select Language", True, (255, 255, 255))
+        popup_surf.blit(title, (selector_x + 10, selector_y + 10))
+        
+        # Botões de idioma
+        button_font = pygame.font.SysFont(None, 18)
+        button_height = 30
+        button_y = selector_y + 40
+        
+        for i, lang_code in enumerate(self.available_languages):
+            lang_name = "English" if lang_code == "en" else "Português"
+            button_rect = pygame.Rect(
+                selector_x + 20,
+                button_y + i * (button_height + 5),
+                selector_width - 40,
+                button_height
+            )
+            
+            # Cor do botão
+            if lang_code == self.selected_language:
+                color = (70, 130, 180)
+            else:
+                color = (60, 60, 70)
+            
+            pygame.draw.rect(popup_surf, color, button_rect, border_radius=4)
+            pygame.draw.rect(popup_surf, (100, 100, 150), button_rect, 1, border_radius=4)
+            
+            # Texto do botão
+            lang_text = button_font.render(lang_name, True, (255, 255, 255))
+            text_rect = lang_text.get_rect(center=button_rect.center)
+            popup_surf.blit(lang_text, text_rect)
 
     def draw_selected_building_info(self, surface, game_state):
         if not self.build_menu_open or not self.selected_building:
@@ -461,19 +861,28 @@ class HUD:
             )
     
     def update_tooltip(self, mouse_pos, game_state):
+        # Não mostra tooltips se popup de opções estiver aberto
+        if self.options_popup_open:
+            self.hover_tooltip = None
+            return
+
         self.hover_tooltip = None
 
         # check recurso na barra superior
         for res, rect in getattr(self, "resource_rects", {}).items():
             if rect.collidepoint(mouse_pos):
-                data = RESOURCE_DATA[res]
+                # Obter dados atualizados de recursos
+                from resources import get_resource_data
+                resource_data = get_resource_data()
+                data = resource_data[res]
+                
                 if res == ResourceType.POPULATION:
                     self.hover_tooltip = {
                         "title": data["name"],
                         "lines": [
                             data["description"],
-                            f"With housing: {game_state.resources[res]['with_housing']}",
-                            f"Without housing: {game_state.resources[res]['without_housing']}"
+                            f"{self.i18n.get('ui.with_housing', 'With housing')}: {game_state.resources[res]['with_housing']}",
+                            f"{self.i18n.get('ui.without_housing', 'Without housing')}: {game_state.resources[res]['without_housing']}"
                         ]
                     }
                 else:
@@ -481,8 +890,8 @@ class HUD:
                         "title": data["name"],
                         "lines": [
                             data["description"],
-                            f"Production per day: {data['production']}",
-                            f"Consumption per day: {data['consumption']}"
+                            f"{self.i18n.get('ui.production_per_day', 'Production per day')}: {data['production']}",
+                            f"{self.i18n.get('ui.consumption_per_day', 'Consumption per day')}: {data['consumption']}"
                         ]
                     }
                 return
@@ -495,25 +904,32 @@ class HUD:
                 # Botão do martelo
                 if button.action == "toggle_build":
                     self.hover_tooltip = {
-                        "title": "Build Mode",
-                        "lines": ["Allows Building (Shortcut: B)"]
+                        "title": self.i18n.get("ui.build_mode", "Build Mode"),
+                        "lines": [self.i18n.get("descriptions.build_mode", "Allows Building (Shortcut: B)")]
                     }
                     return
 
                 # Botões de construção
                 if button.action == "select_build":
-                    data = BUILDING_DATA[button.data]
+                    # Obter dados atualizados de construções
+                    from buildings import get_building_data
+                    building_data = get_building_data()
+                    data = building_data[button.data]
 
                     lines = [data["description"]]
 
                     for res, amount in data["cost"].items():
-                        lines.append(f"{res.capitalize()}: {amount}")
+                        # Obter nome do recurso traduzido
+                        from resources import get_resource_data
+                        res_data = get_resource_data()
+                        res_name = res_data.get(res, {}).get("name", res.capitalize())
+                        lines.append(f"{res_name}: {amount}")
 
                     self.hover_tooltip = {
                         "title": data["name"],
                         "lines": lines
                     }
-                return
+                    return
             
     def draw_tooltip(self, surface, mouse_pos):
         if not self.hover_tooltip:

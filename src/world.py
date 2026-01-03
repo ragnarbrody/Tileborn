@@ -5,8 +5,7 @@ import pygame
 
 from settings import MAP_WIDTH, MAP_HEIGHT, TILE_SIZE
 from tiles import TileType, TILE_DATA
-from buildings import BUILDING_DATA
-from buildings import BuildingInstance
+from buildings import get_building_data, BuildingInstance
 from decorations import Tree
 
 class World:
@@ -22,7 +21,9 @@ class World:
         self.tile_sprites = {}
         self.tile_weights = {}
 
-        
+        # Dados de construções (serão atualizados quando o idioma mudar)
+        self._building_data = None
+
         for tile, data in TILE_DATA.items():
             self.tile_sprites[tile] = []
             self.tile_weights[tile] = []
@@ -38,6 +39,21 @@ class World:
                      for _ in range(self.height)]
 
         self.generate()
+
+    @property
+    def building_data(self):
+        """Retorna os dados de construções sempre atualizados"""
+        if self._building_data is None:
+            self._building_data = get_building_data()
+        return self._building_data
+    
+    @building_data.setter
+    def building_data(self, value):
+        self._building_data = value
+        
+    def update_building_data(self):
+        """Força a atualização dos dados de construções"""
+        self._building_data = get_building_data()
 
     # GERAÇÃO do mundo
     def generate(self):
@@ -166,7 +182,7 @@ class World:
         )
 
     def draw_build_preview(self, surface, camera, tile_x, tile_y, building_type, game_state):
-        data = BUILDING_DATA[building_type]
+        data = self.building_data[building_type]
         w, h = data["size"]
 
         can_place = self.can_place_building(tile_x, tile_y, building_type)
@@ -200,7 +216,7 @@ class World:
 
 
     def can_place_building(self, tile_x, tile_y, building_type):
-        data = BUILDING_DATA[building_type]
+        data = self.building_data[building_type]
         w, h = data["size"]
 
         for y in range(tile_y, tile_y + h):
@@ -220,7 +236,7 @@ class World:
         if not self.can_place_building(tile_x, tile_y, building_type):
             return False
 
-        data = BUILDING_DATA[building_type]
+        data = self.building_data[building_type]
         cost = data["cost"]
 
         if not game_state.has_resources(cost):

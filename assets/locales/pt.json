@@ -1,0 +1,53 @@
+{
+    "menu": {
+        "save": "Salvar",
+        "options": "Opções",
+        "quit": "Sair"
+    },
+    "options": {
+        "general": "Geral",
+        "display": "Display",
+        "audio": "Áudio",
+        "language": "Idioma",
+        "auto_save": "Frequência de auto-salvar",
+        "game_settings": "Configurações do jogo"
+    },
+    "resources": {
+        "wood": "Madeira",
+        "stone": "Pedra",
+        "food": "Comida",
+        "gold": "Ouro",
+        "population": "População"
+    },
+    "buildings": {
+        "house": "Casa",
+        "sawmill": "Serraria",
+        "townhall": "Prefeitura",
+        "dirt_road": "Estrada de Terra"
+    },
+    "descriptions": {
+        "wood_desc": "Usado para construir casas e estruturas.",
+        "stone_desc": "Usado para construir estruturas fortes.",
+        "food_desc": "Alimenta sua população.",
+        "gold_desc": "Usado para comércio e melhorias.",
+        "population_desc": "Contagem de seus cidadãos.",
+        "house_desc": "Uma casa para seus habitantes.",
+        "sawmill_desc": "Um lugar para obter madeira.",
+        "townhall_desc": "Um lugar onde a cidade é administrada.",
+        "dirt_road_desc": "Algo para seus cidadãos andarem.",
+        "build_mode": "Permite Construir (Atalho: B)"
+    },
+    "ui": {
+        "build_mode": "Modo Construção",
+        "settings_will_be_implemented": "Configurações serão implementadas em breve...",
+        "general_settings": "Configurações Gerais",
+        "display_settings": "Configurações de Display",
+        "audio_settings": "Configurações de Áudio",
+        "resolution": "Resolução",
+        "fullscreen": "Tela Cheia",
+        "vsync": "VSync",
+        "master_volume": "Volume principal",
+        "music_volume": "Volume da música",
+        "sound_effects": "Efeitos sonoros"
+    }
+}

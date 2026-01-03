@@ -1,0 +1,53 @@
+{
+    "menu": {
+        "save": "Save",
+        "options": "Options",
+        "quit": "Quit"
+    },
+    "options": {
+        "general": "General",
+        "display": "Display",
+        "audio": "Audio",
+        "language": "Language",
+        "auto_save": "Auto-save frequency",
+        "game_settings": "Game settings"
+    },
+    "resources": {
+        "wood": "Wood",
+        "stone": "Stone",
+        "food": "Food",
+        "gold": "Gold",
+        "population": "Population"
+    },
+    "buildings": {
+        "house": "House",
+        "sawmill": "Sawmill",
+        "townhall": "Town Hall",
+        "dirt_road": "Dirt Road"
+    },
+    "descriptions": {
+        "wood_desc": "Used for building houses and structures.",
+        "stone_desc": "Used for building strong structures.",
+        "food_desc": "Feeds your population.",
+        "gold_desc": "Used for trade and upgrades.",
+        "population_desc": "Your citizens count.",
+        "house_desc": "A home for your inhabitants.",
+        "sawmill_desc": "A place to get some wood.",
+        "townhall_desc": "A place where the town is administrated.",
+        "dirt_road_desc": "Something to your citizen walk on.",
+        "build_mode": "Allows Building (Shortcut: B)"
+    },
+    "ui": {
+        "build_mode": "Build Mode",
+        "settings_will_be_implemented": "Settings will be implemented soon...",
+        "general_settings": "General Settings",
+        "display_settings": "Display Settings",
+        "audio_settings": "Audio Settings",
+        "resolution": "Resolution",
+        "fullscreen": "Fullscreen",
+        "vsync": "VSync",
+        "master_volume": "Master volume",
+        "music_volume": "Music volume",
+        "sound_effects": "Sound effects"
+    }
+}
