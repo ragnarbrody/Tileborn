@@ -1,14 +1,18 @@
 # -*- coding: utf-8 -*-
 
 import pygame
-from settings import LOGICAL_WIDTH, LOGICAL_HEIGHT
-from resources import ResourceType
+from resources import ResourceType, RESOURCE_DATA
 from buildings import BUILDING_DATA
 import math
 from paths import UI_ICONS, BUILDINGS_ICONS, TILES_DIR, FONTS_DIR
 
 class HUD:
     def __init__(self):
+        # popup
+        self.options_popup_open = False
+        self.options_popup_rect = pygame.Rect(0, 0, 300, 200)  # largura x altura do popup
+        self.options_popup_alpha = 200
+
         self.build_menu_open = False
         self.height = 80
         self.visible = True
@@ -32,6 +36,14 @@ class HUD:
         self.top_bar_height = 40
         self.top_bar_alpha = 180
 
+        self.resource_icons = {}
+        self.resource_icon_size = 32  # tamanho dos ícones na barra superior
+
+        for res, data in RESOURCE_DATA.items():
+            icon = pygame.image.load(data["icon"]).convert_alpha()
+            icon = pygame.transform.scale(icon, (self.resource_icon_size, self.resource_icon_size))
+            self.resource_icons[res] = icon
+
         # Animação do menu hambúrguer
         self.top_menu_width = 140
         self.top_menu_option_height = 28
@@ -45,21 +57,11 @@ class HUD:
 
         # Menu hamburguer
         self.menu_button_size = 26
-        self.menu_button_rect = pygame.Rect(
-            LOGICAL_WIDTH - self.menu_button_size - 10,
-            7,
-            self.menu_button_size,
-            self.menu_button_size
-        )
+        self.menu_button_rect = pygame.Rect(0, 0, self.menu_button_size, self.menu_button_size)
 
         self.menu_open = False
 
-        self.rect = pygame.Rect(
-            0,
-            LOGICAL_HEIGHT - self.height,
-            LOGICAL_WIDTH,
-            self.height
-        )
+        self.rect = pygame.Rect(0, 0, 1, self.height)
 
         self.font = pygame.font.SysFont(None, 24)
 
@@ -90,6 +92,22 @@ class HUD:
             )
 
             x += self.icon_size + self.padding
+
+    def resize(self, width, height):
+        # HUD inferior
+        self.rect.x = 0
+        self.rect.width = width
+        self.rect.y = height - self.height
+
+        # Botão hamburguer (barra superior)
+        self.menu_button_rect.topleft = (
+            width - self.menu_button_size - 10,
+            (self.top_bar_height - self.menu_button_size) // 2
+        )
+
+        # Atualiza botões principais
+        self.create_main_buttons()
+        self.create_build_buttons()
 
     def is_build_mode(self):
         return self.build_menu_open
@@ -179,6 +197,9 @@ class HUD:
         #surface.blit(label, (10, self.rect.y + 10))
 
         self.draw_selected_building_info(surface, game_state)
+        
+        # POPUP DE OPTIONS
+        self.draw_options_popup(surface)
 
     def handle_click(self, mouse_pos):
         if self.menu_button_rect.collidepoint(mouse_pos):
@@ -203,6 +224,24 @@ class HUD:
                     self.selected_building = button.data
                     return "build_selected"
 
+        # CLICKS NO MENU HAMBURGUE
+        if self.menu_open:
+            width = self.top_menu_width
+            x = self.menu_button_rect.right - width
+            y = int(self.top_menu_y)
+
+            for i, option in enumerate(self.top_menu_options):
+                option_rect = pygame.Rect(
+                    x, y + i * self.top_menu_option_height, width, self.top_menu_option_height
+                )
+                if option_rect.collidepoint(mouse_pos):
+                    if option == "Options":
+                        self.options_popup_open = True
+                    elif option == "Quit":
+                        pygame.event.post(pygame.event.Event(pygame.QUIT))
+                    # você pode adicionar "Save" depois
+                    return f"menu_{option.lower()}_clicked"
+
         return None
     
     def close_top_menu(self):
@@ -217,7 +256,7 @@ class HUD:
         top_bar_rect = pygame.Rect(
             0,
             0,
-            LOGICAL_WIDTH,
+            self.rect.width,
             self.top_bar_height
         )
 
@@ -249,6 +288,21 @@ class HUD:
     def is_build_menu_open(self):
         return self.build_menu_open
 
+    def draw_options_popup(self, surface):
+        if not self.options_popup_open:
+            return
+
+        # centraliza na tela
+        screen_width, screen_height = surface.get_size()
+        self.options_popup_rect.center = (screen_width // 2, screen_height // 2)
+
+        popup_surf = pygame.Surface(self.options_popup_rect.size, pygame.SRCALPHA)
+        popup_surf.fill((50, 50, 50, self.options_popup_alpha))  # cinza semi-transparente
+
+        # borda
+        pygame.draw.rect(popup_surf, (200, 200, 200), popup_surf.get_rect(), 2)
+
+        surface.blit(popup_surf, self.options_popup_rect.topleft)
 
     def draw_selected_building_info(self, surface, game_state):
         if not self.build_menu_open or not self.selected_building:
@@ -313,30 +367,50 @@ class HUD:
     def draw_top_bar(self, surface, game_state):
 
         # FUNDO DA BARRA
-        bg = pygame.Surface((LOGICAL_WIDTH, self.top_bar_height), pygame.SRCALPHA)
+        bg = pygame.Surface((surface.get_width(), self.top_bar_height), pygame.SRCALPHA)
         bg.fill((50, 50, 50, self.top_bar_alpha))
         surface.blit(bg, (0, 0))
 
         # RECURSOS (ESQUERDA)
         x = 10
-        y = (self.top_bar_height - self.font.get_height()) // 2
+        self.resource_icon_offset_y = -2  # negativo = sobe, positivo = desce
+        y = (self.top_bar_height - self.resource_icon_size) // 2 + self.resource_icon_offset_y
 
-        resources = [
+        self.resource_rects = {}  # salvar retângulos para tooltips
+
+        resources_to_draw = [
             ResourceType.WOOD,
             ResourceType.STONE,
             ResourceType.FOOD,
-            ResourceType.GOLD
+            ResourceType.GOLD,
+            ResourceType.POPULATION
         ]
 
-        for res in resources:
-            text = f"{res.capitalize()}: {game_state.resources[res]}"
-            img = self.font.render(text, True, (255, 255, 255))
-            surface.blit(img, (x, y))
-            x += img.get_width() + 20
+        for res in resources_to_draw:
+            icon = self.resource_icons[res]
+            surface.blit(icon, (x, y))
+
+            # quantidade ou dados da população
+            if res == ResourceType.POPULATION:
+                amount_text = self.font.render(
+                    f"{game_state.resources[res]['with_housing']} / {game_state.resources[res]['without_housing']}",
+                    True,
+                    (255, 255, 255)
+                )
+            else:
+                amount_text = self.font.render(str(game_state.resources[res]), True, (255, 255, 255))
+                 
+            surface.blit(amount_text, (x + self.resource_icon_size + 4, y + (self.resource_icon_size - amount_text.get_height()) // 2))
+
+            # salvar retângulo do recurso
+            rect = pygame.Rect(x, y, self.resource_icon_size + 4 + amount_text.get_width(), self.resource_icon_size)
+            self.resource_rects[res] = rect
+
+            x += rect.width + 16
 
         # BOTÃO HAMBURGUER (DIREITA)
         self.menu_button_rect.topleft = (
-            LOGICAL_WIDTH - self.menu_button_size - 10,
+            surface.get_width() - self.menu_button_size - 10,
             (self.top_bar_height - self.menu_button_size) // 2
         )
 
@@ -386,8 +460,32 @@ class HUD:
                 line_width
             )
     
-    def update_tooltip(self, mouse_pos):
+    def update_tooltip(self, mouse_pos, game_state):
         self.hover_tooltip = None
+
+        # check recurso na barra superior
+        for res, rect in getattr(self, "resource_rects", {}).items():
+            if rect.collidepoint(mouse_pos):
+                data = RESOURCE_DATA[res]
+                if res == ResourceType.POPULATION:
+                    self.hover_tooltip = {
+                        "title": data["name"],
+                        "lines": [
+                            data["description"],
+                            f"With housing: {game_state.resources[res]['with_housing']}",
+                            f"Without housing: {game_state.resources[res]['without_housing']}"
+                        ]
+                    }
+                else:
+                    self.hover_tooltip = {
+                        "title": data["name"],
+                        "lines": [
+                            data["description"],
+                            f"Production per day: {data['production']}",
+                            f"Consumption per day: {data['consumption']}"
+                        ]
+                    }
+                return
 
         buttons = self.build_buttons if self.build_menu_open else self.buttons
 
@@ -448,14 +546,26 @@ class HUD:
         )
 
         x, y = mouse_pos
-        x += 12
-        y -= 72
+        x += 12  # pequeno deslocamento horizontal do mouse
 
+        # Ajuste vertical automático
+        if y < self.top_bar_height + 10:
+            # mouse na barra superior → desenha para baixo
+            y += 20
+        else:
+            # mouse na barra inferior ou no mundo → desenha para cima
+            y -= height + 12
+
+        # Verifica se o tooltip sai da tela à direita
+        if x + width > surface.get_width():
+            x = surface.get_width() - width - 10
+
+        # Criar fundo do tooltip
         bg = pygame.Surface((width, height), pygame.SRCALPHA)
         bg.fill((50, 50, 50, 190))
-
         surface.blit(bg, (x, y))
 
+        # Desenhar textos
         draw_y = y + padding
         surface.blit(title_surf, (x + padding, draw_y))
         draw_y += title_surf.get_height() + line_spacing

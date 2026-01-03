@@ -6,6 +6,7 @@ class BuildingType:
     HOUSE = "house"
     SAWMILL = "sawmill"
     TOWNHALL = "townhall"
+    DIRT_ROAD = "dirt road"
 
 class BuildingInstance:
     def __init__(self, building_type, x, y, sprite):
@@ -46,11 +47,24 @@ BUILDING_DATA = {
         "size": (8, 6),
         "cost": {
             ResourceType.WOOD: 40,
+            ResourceType.GOLD: 20,
             ResourceType.STONE: 20,
         },
         "unlocked": True,
         "description": "A place where the town is administrated.",
         "icon": BUILDINGS_ICONS / "townhall.png",
         "sprite": BUILDINGS_TILES / "townhall_1.png",
+    },
+
+    BuildingType.DIRT_ROAD: {
+        "name": "Dirt Road",
+        "size": (1, 1),
+        "cost": {
+            ResourceType.WOOD: 0,
+        },
+        "unlocked": True,
+        "description": "Something to your citizen walk on.",
+        "icon": BUILDINGS_ICONS / "dirt_road.png",
+        "sprite": BUILDINGS_TILES / "dirt_1.png",
     },
 }

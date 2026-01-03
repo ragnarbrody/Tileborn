@@ -9,6 +9,10 @@ class GameState:
             ResourceType.STONE: 100,
             ResourceType.FOOD: 100,
             ResourceType.GOLD: 20,
+            ResourceType.POPULATION: {
+                "with_housing": 0,
+                "without_housing": 0
+            },
         }
 
     def has_resources(self, cost: dict):

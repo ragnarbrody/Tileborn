@@ -15,19 +15,25 @@ class World:
         self.height = MAP_HEIGHT
         self.buildings = [] # lista de BuildingInstance
         self.occupied_tiles = set()  # tiles ocupados
-        self.decorations = []  # árvores, pedras etc
-        self.tile_sprites = {}
+        self.decorations = []  # árvores, pedras etcs
         self.tile_variants = [[None for _ in range(self.width)]
                       for _ in range(self.height)]
 
         self.tile_sprites = {}
+        self.tile_weights = {}
 
+        
         for tile, data in TILE_DATA.items():
             self.tile_sprites[tile] = []
-            for sprite_path in data["sprites"]:
-                img = pygame.image.load(sprite_path).convert_alpha()
+            self.tile_weights[tile] = []
+
+            for variant in data["variants"]:
+                img = pygame.image.load(variant["sprite"]).convert_alpha()
                 img = pygame.transform.scale(img, (TILE_SIZE, TILE_SIZE))
+
                 self.tile_sprites[tile].append(img)
+                self.tile_weights[tile].append(variant["weight"])
+                
         self.grid = [[TileType.GRASS for _ in range(self.width)]
                      for _ in range(self.height)]
 
@@ -43,8 +49,17 @@ class World:
         for y in range(self.height):
             for x in range(self.width):
                 tile = self.grid[y][x]
-                sprites = TILE_DATA[tile]["sprites"]
-                self.tile_variants[y][x] = random.choice(sprites)
+
+                weights = self.tile_weights[tile]
+                variants_count = len(weights)
+
+                index = random.choices(
+                    range(variants_count),
+                    weights=weights,
+                    k=1
+                )[0]
+
+                self.tile_variants[y][x] = index
 
     def generate_river(self):
         x = random.randint(0, self.width - 1)
@@ -100,8 +115,11 @@ class World:
         start_x = int(camera.x // TILE_SIZE)
         start_y = int(camera.y // TILE_SIZE)
 
-        end_x = start_x + (surface.get_width() // TILE_SIZE) + 1
-        end_y = start_y + (surface.get_height() // TILE_SIZE) + 1
+        tiles_x = int(surface.get_width() / (TILE_SIZE * camera.zoom)) + 2
+        tiles_y = int(surface.get_height() / (TILE_SIZE * camera.zoom)) + 2
+
+        end_x = start_x + tiles_x
+        end_y = start_y + tiles_y
 
         # --- DESENHAR TERRENO ---
         for y in range(start_y, end_y):
@@ -113,11 +131,9 @@ class World:
                     world_y = y * TILE_SIZE
                     screen_x, screen_y = camera.apply(world_x, world_y)
 
-                    variant_path = self.tile_variants[y][x]
-                    sprites = TILE_DATA[tile]["sprites"]
-                    index = sprites.index(variant_path)
-
+                    index = self.tile_variants[y][x]
                     sprite = self.tile_sprites[tile][index]
+
                     surface.blit(sprite, (screen_x, screen_y))
 
         # --- DESENHAR DECORAÇÕES (árvores etc) ---

@@ -13,15 +13,15 @@ class TileType:
 TILE_DATA = {
     TileType.GRASS: {
         "walkable": True,
-        "sprites": [
-            TILES_DIR / "grass_1.png",
-            TILES_DIR / "grass_2.png"
+        "variants": [
+            {"sprite": TILES_DIR / "grass_1.png", "weight": 30},
+            {"sprite": TILES_DIR / "grass_2.png", "weight": 70},
         ]
     },
     TileType.WATER: {
         "walkable": False,
-        "sprites": [
-            TILES_DIR / "water_1.png",
+        "variants": [
+            {"sprite": TILES_DIR / "water_1.png", "weight": 100}
         ]
-    },
+    }
 }
