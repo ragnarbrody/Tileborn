@@ -1,6 +1,7 @@
 # i18n.py
 import json
 from pathlib import Path
+import sys
 
 class I18n:
     _instance = None
@@ -14,9 +15,17 @@ class I18n:
         if hasattr(self, '_initialized'):
             return
         self._initialized = True
+
+        # Detectar se está rodando como executável
+        if getattr(sys, 'frozen', False):
+            # Para executável PyInstaller
+            base_path = Path(sys._MEIPASS)
+        else:
+            # Para desenvolvimento
+            base_path = Path(__file__).parent.parent
         
         # Caminho para a pasta de idiomas
-        self.locales_dir = Path(__file__).parent.parent / "assets" / "locales"
+        self.locales_dir = base_path / "assets" / "locales"
         self.locales_dir.mkdir(parents=True, exist_ok=True)
         
         self.current_lang = "en"  # Idioma padrão
@@ -127,9 +136,36 @@ class I18n:
     def get_available_languages(self):
         """Retorna lista de idiomas disponíveis"""
         languages = []
+        
+        print(f"=== DEBUG I18n ===")
+        print(f"Procurando arquivos em: {self.locales_dir}")
+        print(f"Diretório existe: {self.locales_dir.exists()}")
+        
         if self.locales_dir.exists():
+            print(f"Conteúdo do diretório:")
+            for item in self.locales_dir.iterdir():
+                print(f"  - {item.name} (arquivo: {item.is_file()})")
+            
             for file in self.locales_dir.glob("*.json"):
-                languages.append(file.stem)  # Remove a extensão .json
+                print(f"  Encontrado arquivo JSON: {file.name}")
+                languages.append(file.stem)
+        else:
+            print(f"ERRO: Diretório não encontrado!")
+            # Tenta caminho alternativo para executável
+            import os
+            if getattr(sys, 'frozen', False):
+                # Para executável PyInstaller
+                base_path = sys._MEIPASS
+                alt_path = Path(base_path) / "assets" / "locales"
+                print(f"Tentando caminho alternativo: {alt_path}")
+                if alt_path.exists():
+                    for file in alt_path.glob("*.json"):
+                        print(f"  Encontrado no caminho alternativo: {file.name}")
+                        languages.append(file.stem)
+        
+        print(f"Idiomas detectados: {languages}")
+        print(f"==================")
+        
         return sorted(languages)
 
 # Instância global

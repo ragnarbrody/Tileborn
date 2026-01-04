@@ -67,7 +67,16 @@ def assemble_release():
     assets_src = ROOT / "assets"
     assets_dst = release_dir / "assets"
 
-    shutil.copytree(assets_src, assets_dst)
+    shutil.copytree(assets_src, assets_dst, dirs_exist_ok=True)
+    
+    # Verificar se os arquivos de tradução foram copiados
+    print("\n🔍 Verificando arquivos de tradução...")
+    locales_dir = assets_dst / "locales"
+    if locales_dir.exists():
+        for file in locales_dir.glob("*.json"):
+            print(f"  ✅ {file.name}")
+    else:
+        print(f"  ❌ Diretório de traduções não encontrado: {locales_dir}")
 
     print(f"\n✅ Release pronta em: {release_dir}")
 

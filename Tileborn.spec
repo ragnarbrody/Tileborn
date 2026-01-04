@@ -9,6 +9,13 @@ assets_path = project_root / "assets"
 
 block_cipher = None
 
+# Coletar todos os arquivos .json de tradução
+locales_files = []
+locales_path = assets_path / "locales"
+if locales_path.exists():
+    for file in locales_path.glob("*.json"):
+        locales_files.append((str(file), "assets/locales"))
+
 a = Analysis(
     [str(src_path / "main.py")],
     pathex=[str(project_root)],
@@ -17,8 +24,7 @@ a = Analysis(
         (str(assets_path / "icons"), "assets/icons"),
         (str(assets_path / "tiles"), "assets/tiles"),
         (str(assets_path / "fonts"), "assets/fonts"),
-        (str(assets_path / "locales"), "assets/locales"),
-    ],
+    ] + locales_files,  # Adiciona arquivos de tradução
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

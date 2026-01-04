@@ -697,7 +697,8 @@ class HUD:
         
         # Título
         title_font = pygame.font.SysFont(None, 22)
-        title = title_font.render("Select Language", True, (255, 255, 255))
+        title_popup_selector = self.i18n.get("ui.select_language", "Select Language")
+        title = title_font.render(title_popup_selector, True, (255, 255, 255))
         popup_surf.blit(title, (selector_x + 10, selector_y + 10))
         
         # Botões de idioma
@@ -706,7 +707,14 @@ class HUD:
         button_y = selector_y + 40
         
         for i, lang_code in enumerate(self.available_languages):
-            lang_name = "English" if lang_code == "en" else "Português"
+            # Nomes dos idiomas
+            lang_names = {
+                "en": "English",
+                "pt": "Português",
+                "de": "Deutsch"
+            }
+            lang_name = lang_names.get(lang_code, lang_code)
+
             button_rect = pygame.Rect(
                 selector_x + 20,
                 button_y + i * (button_height + 5),

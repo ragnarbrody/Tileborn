@@ -55,6 +55,7 @@
         "production_per_day": "Production per day",
         "with_housing": "With housing",
         "without_housing": "Without housing",
-        "camera_movement": "Camera movement"
+        "camera_movement": "Camera movement",
+        "select_language": "Select Language"
     }
 }
