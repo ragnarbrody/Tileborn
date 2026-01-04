@@ -20,6 +20,8 @@ class HUD:
         self.build_buttons = []
         self.selected_building = None
         
+        self.top_menu_hover_index = -1  # -1 significa nenhuma opção com hover
+
         self.icon_size = 48
         self.padding = 10
 
@@ -67,7 +69,7 @@ class HUD:
         self.options_popup_alpha = 210
 
         # Sistema de abas do menu de opções
-        self.options_tab_keys = ["general", "display", "audio"]
+        self.options_tab_keys = ["general", "display", "audio", "controls"]
         self.current_options_tab_key = "general"  # Armazena a chave
 
         # Opções de idioma disponíveis
@@ -90,6 +92,9 @@ class HUD:
                 self.i18n.get("ui.master_volume", "Master volume"),
                 self.i18n.get("ui.music_volume", "Music volume"),
                 self.i18n.get("ui.sound_effects", "Sound effects")
+            ],
+            self.i18n.get("options.controls", "Controls"): [
+                self.i18n.get("ui.camera_movement", "Camera movement")
             ]
         }
         
@@ -113,7 +118,8 @@ class HUD:
         return [
             self.i18n.get("options.general", "General"),
             self.i18n.get("options.display", "Display"),
-            self.i18n.get("options.audio", "Audio")
+            self.i18n.get("options.audio", "Audio"),
+            self.i18n.get("options.controls", "Controls")
         ]
     
     def get_current_tab_text(self):
@@ -124,6 +130,8 @@ class HUD:
             return self.i18n.get("options.display", "Display")
         elif self.current_options_tab_key == "audio":
             return self.i18n.get("options.audio", "Audio")
+        elif self.current_options_tab_key == "controls":
+            return self.i18n.get("options.controls", "Controls")
         return self.i18n.get("options.general", "General")
     
     def get_tab_content(self, tab_key):
@@ -145,6 +153,10 @@ class HUD:
                 self.i18n.get("ui.master_volume", "Master volume"),
                 self.i18n.get("ui.music_volume", "Music volume"),
                 self.i18n.get("ui.sound_effects", "Sound effects")
+            ]
+        elif tab_key == "controls":
+            return [
+                self.i18n.get("ui.camera_movement", "Camera Movement")
             ]
         return [] 
         
@@ -195,7 +207,7 @@ class HUD:
         self.build_menu_open = not self.build_menu_open
         return self.build_menu_open
 
-    def update(self, input_actions, dt):
+    def update(self, input_actions, dt, mouse_pos=None):
         if input_actions.get("toggle_build"):
             self.toggle_build_menu()
 
@@ -211,6 +223,10 @@ class HUD:
             self.top_menu_y -= self.top_menu_speed * dt
             if self.top_menu_y < self.top_menu_target_y:
                 self.top_menu_y = self.top_menu_target_y
+
+        # Atualiza hover do menu hambúrguer
+        if mouse_pos is not None:
+            self.update_top_menu_hover(mouse_pos)
 
     def create_main_buttons(self):
         self.buttons.clear()
@@ -509,18 +525,24 @@ class HUD:
         pygame.draw.rect(popup_surf, (80, 80, 80), tabs_area, 1)
         
         # Calcular largura das abas
-        if self.options_tab_keys:  # Evita divisão por zero
-            tab_width = (popup_width - (len(self.options_tab_keys) + 1) * self.tab_button_padding) // len(self.options_tab_keys)
+        tab_texts = self.get_options_tabs_texts()  # Obtem textos traduzidos primeiro
+        if tab_texts:  # Evita divisão por zero
+            tab_width = (popup_width - (len(tab_texts) + 1) * self.tab_button_padding) // len(tab_texts)
         else:
             tab_width = 100
+
+        tab_texts = self.get_options_tabs_texts()     
         
         # Desenhar abas
-        for i, tab_name in enumerate(self.options_tab_keys):
+        for i, tab_text  in enumerate(tab_texts):
             x = self.tab_button_padding + i * (tab_width + self.tab_button_padding)
             tab_rect = pygame.Rect(x, 5, tab_width, tabs_height - 10)
+
+            # Usar a chave para verificar se é a aba ativa
+            tab_key = self.options_tab_keys[i]
             
             # Cor da aba ativa/inativa
-            if tab_name == self.current_options_tab_key:
+            if tab_key == self.current_options_tab_key:
                 color = (70, 130, 180)  # Azul para aba ativa
                 text_color = (255, 255, 255)
             else:
@@ -533,7 +555,7 @@ class HUD:
             
             # Texto da aba
             tab_font = pygame.font.SysFont(None, 20)
-            tab_text = tab_font.render(tab_name, True, text_color)
+            tab_text = tab_font.render(tab_text, True, text_color)
             text_rect = tab_text.get_rect(center=tab_rect.center)
             popup_surf.blit(tab_text, text_rect)
         
@@ -564,6 +586,8 @@ class HUD:
             title_text = title_font.render(self.i18n.get("ui.display_settings", "Display Settings"), True, (255, 255, 255))
         elif self.current_options_tab_key == "audio":
             title_text = title_font.render(self.i18n.get("ui.audio_settings", "Audio Settings"), True, (255, 255, 255))
+        elif self.current_options_tab_key == "controls":
+            title_text = title_font.render(self.i18n.get("ui.controls_settings", "Controls Settings"), True, (255, 255, 255))
         else:
             title_text = title_font.render(f"{current_tab_text} Settings", True, (255, 255, 255))
         
@@ -708,7 +732,14 @@ class HUD:
         if not self.build_menu_open or not self.selected_building:
             return
 
-        data = BUILDING_DATA[self.selected_building]
+        # Obtem dados atualizados de construções e recursos
+        from buildings import get_building_data
+        from resources import get_resource_data
+        
+        building_data = get_building_data()
+        resource_data = get_resource_data()
+        
+        data = building_data[self.selected_building]
 
         padding = 8
         line_spacing = 4
@@ -721,15 +752,18 @@ class HUD:
         for res, amount in data["cost"].items():
             current = game_state.resources.get(res, 0)
 
+            # Obtem nome traduzido do recurso
+            res_name = resource_data.get(res, {}).get("name", res.capitalize())
+
             if current >= amount:
                 color = (0, 200, 0)
             else:
                 color = (200, 50, 50)
 
-            text = f"{res.capitalize()}: {amount} / {current}"
+            text = f"{res_name}: {amount} / {current}"
             lines.append(self.font.render(text, True, color))
 
-        # CALCULAR TAMANHO DO FUNDO
+        # CALCULA o TAMANHO DO FUNDO
         width = max(
             title_surf.get_width(),
             max(line.get_width() for line in lines)
@@ -827,16 +861,61 @@ class HUD:
         x = self.menu_button_rect.right - width
         y = int(self.top_menu_y)
 
+        # Fundo do menu
         bg = pygame.Surface((width, height), pygame.SRCALPHA)
         bg.fill((40, 40, 40, 220))
         surface.blit(bg, (x, y))
 
+        # Borda do menu
+        pygame.draw.rect(surface, (80, 80, 80), (x, y, width, height), 1)
+
         for i, option in enumerate(self.top_menu_options):
+            option_rect = pygame.Rect(
+                x, 
+                y + i * self.top_menu_option_height, 
+                width, 
+                self.top_menu_option_height
+            )
+
+            # Se essa opção tá com hover, desenha ofundo
+            if i == self.top_menu_hover_index:
+                # Fundo laranja mei transparente para hover
+                hover_bg = pygame.Surface((option_rect.width, option_rect.height), pygame.SRCALPHA)
+                hover_bg.fill((255, 165, 0, 80))  # Laranja com transparência
+                surface.blit(hover_bg, option_rect.topleft)
+                
+                # Borda da opção com hover
+                pygame.draw.rect(surface, (255, 200, 100, 150), option_rect, 1)
+
+            # Texto da opção
             text = self.font.render(option, True, (255, 255, 255))
             ty = y + i * self.top_menu_option_height + (
                 self.top_menu_option_height - text.get_height()
             ) // 2
             surface.blit(text, (x + 10, ty))
+
+    def update_top_menu_hover(self, mouse_pos):
+        """Atualiza qual opção do menu hambúrguer está com hover"""
+        self.top_menu_hover_index = -1  # Reset
+        
+        if not self.menu_open:
+            return
+        
+        # Verifica se o mouse tá em cima de alguma opção
+        width = self.top_menu_width
+        x = self.menu_button_rect.right - width
+        y = int(self.top_menu_y)
+        
+        for i, option in enumerate(self.top_menu_options):
+            option_rect = pygame.Rect(
+                x, 
+                y + i * self.top_menu_option_height, 
+                width, 
+                self.top_menu_option_height
+            )
+            if option_rect.collidepoint(mouse_pos):
+                self.top_menu_hover_index = i
+                break
 
     def draw_hamburger_button(self, surface, rect):
         # fundo do botão

@@ -57,7 +57,8 @@ class I18n:
                 "audio": "Audio",
                 "language": "Language",
                 "auto_save": "Auto-save frequency",
-                "game_settings": "Game settings"
+                "game_settings": "Game settings",
+                "controls": "Controls"
             },
             "resources": {
                 "wood": "Wood",
@@ -99,7 +100,8 @@ class I18n:
                 "with_housing": "With housing",
                 "without_housing": "Without housing",
                 "production_per_day": "Production per day",
-                "consumption_per_day": "Consumption per day"
+                "consumption_per_day": "Consumption per day",
+                "camera_movement": "Camera movement"
             }
         }
         

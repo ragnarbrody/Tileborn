@@ -5,9 +5,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-# ==========================
+""" Este script é só para compilar os executaveis do jogo e do launcher """
+
 # CONFIGURAÇÕES
-# ==========================
 PROJECT_NAME = "Tileborn"
 LAUNCHER_NAME = "TilebornLauncher"
 
@@ -18,9 +18,7 @@ BUILD = ROOT / "build"
 GAME_SPEC = ROOT / "Tileborn.spec"
 LAUNCHER_SPEC = ROOT / "TilebornLauncher.spec"
 
-# ==========================
 # FUNÇÕES
-# ==========================
 def run(command: list[str]):
     print(f"\n▶ {' '.join(command)}")
     subprocess.check_call(command)
@@ -73,9 +71,7 @@ def assemble_release():
 
     print(f"\n✅ Release pronta em: {release_dir}")
 
-# ==========================
 # MAIN
-# ==========================
 if __name__ == "__main__":
     try:
         clean()

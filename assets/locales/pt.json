@@ -10,7 +10,9 @@
         "audio": "Áudio",
         "language": "Idioma",
         "auto_save": "Frequência de auto-salvar",
-        "game_settings": "Configurações do jogo"
+        "game_settings": "Configurações do jogo",
+        "controls": "Controles"
+
     },
     "resources": {
         "wood": "Madeira",
@@ -43,11 +45,17 @@
         "general_settings": "Configurações Gerais",
         "display_settings": "Configurações de Display",
         "audio_settings": "Configurações de Áudio",
+        "controls_settings" : "Configurações de Controles",
         "resolution": "Resolução",
         "fullscreen": "Tela Cheia",
         "vsync": "VSync",
         "master_volume": "Volume principal",
         "music_volume": "Volume da música",
-        "sound_effects": "Efeitos sonoros"
+        "sound_effects": "Efeitos sonoros",
+        "consumption_per_day": "Consumo por dia",
+        "production_per_day": "Produção por dia",
+        "with_housing": "Com casa",
+        "without_housing": "Sem casa",
+        "camera_movement": "Movimento da câmera"
     }
 }

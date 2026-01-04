@@ -50,7 +50,7 @@ def main():
         # calcular tile atual primeiro
         tile_x, tile_y = mouse_to_tile(mouse_pos, camera)
 
-        hud.update({}, dt)
+        hud.update({}, dt, mouse_pos)
         hud.update_tooltip(mouse_pos, game_state)
         
         for event in pygame.event.get():

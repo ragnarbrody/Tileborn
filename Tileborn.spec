@@ -14,7 +14,10 @@ a = Analysis(
     pathex=[str(project_root)],
     binaries=[],
     datas=[
-        (str(assets_path), "assets"),
+        (str(assets_path / "icons"), "assets/icons"),
+        (str(assets_path / "tiles"), "assets/tiles"),
+        (str(assets_path / "fonts"), "assets/fonts"),
+        (str(assets_path / "locales"), "assets/locales"),
     ],
     hiddenimports=[],
     hookspath=[],
