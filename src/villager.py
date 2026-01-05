@@ -59,6 +59,25 @@ class Villager:
         
         return f"{random.choice(first_names)} {random.choice(last_names)}"
     
+    def assign_to_workplace(self, workplace):
+        """Atribui este aldeão a um local de trabalho"""
+        if not workplace:
+            return False
+        
+        if self.workplace:
+            # Remover do trabalho atual
+            self.workplace.remove_worker(self)
+        
+        # Adicionar ao novo trabalho
+        success = workplace.add_worker(self)
+        
+        if success:
+            print(f"{self.name} começou a trabalhar na {workplace.type}")
+            self.state = VillagerState.GOING_TO_WORK
+            return True
+        
+        return False
+    
     def update(self, dt, world):
         """Atualiza o estado do aldeão"""
         self.animation_timer += dt

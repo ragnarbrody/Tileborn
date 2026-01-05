@@ -27,6 +27,7 @@ def main():
     world = World()
     hud = HUD()
     game_state = GameState()
+    time_manager = TimeManager(day_duration_seconds=300)
     hud.resize(display.view_width, display.view_height)
     camera = Camera(
         world_width=MAP_WIDTH * TILE_SIZE,
@@ -46,6 +47,7 @@ def main():
     while running:
         mouse_pos = pygame.mouse.get_pos()
         dt = clock.tick(FPS) / 1000
+        time_manager.update(dt)
 
         # calcular tile atual primeiro
         tile_x, tile_y = mouse_to_tile(mouse_pos, camera)
@@ -195,8 +197,8 @@ def main():
 
         world.draw_highlight(display.surface, camera, tile_x, tile_y)
 
-        hud.draw(display.surface, game_state)
-        hud.draw_top_bar(display.surface, game_state)
+        hud.draw_top_bar(display.surface, game_state, time_manager)
+        hud.draw(display.surface, game_state) 
         hud.draw_tooltip(display.surface, mouse_pos)
 
         display.end_draw()

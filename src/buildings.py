@@ -34,22 +34,37 @@ class BuildingInstance:
         if self.type == BuildingType.HOUSE:
             self.max_inhabitants = 4  # 4 pessoas por casa
             self.max_workers = 0
+            self.base_production_per_worker = {}
             
         elif self.type == BuildingType.SAWMILL:
             self.max_inhabitants = 0
             self.max_workers = 3  # 3 trabalhadores na serraria
-            self.production_rate = {ResourceType.WOOD: 5}  # 5 madeiras por dia
-            self.consumption_rate = {ResourceType.FOOD: 3}  # 3 comidas por dia
+            self.base_production_per_worker = {ResourceType.WOOD: 2}  # 2 madeiras por trabalhador por dia
             
         elif self.type == BuildingType.TOWNHALL:
-            self.max_inhabitants = 0
-            self.max_workers = 5
-            self.production_rate = {}
-            self.consumption_rate = {ResourceType.FOOD: 5}
+            self.max_inhabitants = 10  # A prefeitura pode abrigar alguns habitantes
+            self.max_workers = 2  # Administradores da cidade
+            self.base_production_per_worker = {}  # Prefeitura não produz recursos
             
         elif self.type == BuildingType.DIRT_ROAD:
             self.max_inhabitants = 0
             self.max_workers = 0
+            self.base_production_per_worker = {}
+
+    def calculate_daily_production(self):
+        """Calcula a produção diária baseada no número de trabalhadores"""
+        daily_production = {}
+        
+        if not self.base_production_per_worker:
+            return daily_production
+        
+        for resource, amount_per_worker in self.base_production_per_worker.items():
+            if self.workers:
+                # Produção = base por trabalhador × número de trabalhadores × modificador
+                total_amount = amount_per_worker * len(self.workers) * self.production_modifier
+                daily_production[resource] = int(total_amount)
+        
+        return daily_production
 
     @property
     def size(self):
@@ -132,7 +147,7 @@ def get_building_data():
 
         BuildingType.TOWNHALL: {
             "name": i18n.get("buildings.townhall", "Town Hall"),
-            "size": (8, 6),
+            "size": (8, 7),
             "cost": {
                 ResourceType.WOOD: 40,
                 ResourceType.GOLD: 20,

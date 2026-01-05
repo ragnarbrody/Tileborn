@@ -32,10 +32,22 @@ class HUD:
             self.build_icon, (self.icon_size, self.icon_size)
         )
 
-        # Barra superior
-        self.top_bar_height = 40
-        self.top_bar_alpha = 180
+        self.day_periods = [
+            ("late_night",    0.00, 0.15, (90,  90, 140)),   # azul escuro
+            ("early_morning", 0.15, 0.25, (120, 180, 255)),  # azul claro
+            ("morning",       0.25, 0.45, (255, 220, 120)),  # amarelo suave
+            ("midday",        0.45, 0.55, (255, 245, 200)),  # quase branco
+            ("afternoon",     0.55, 0.72, (255, 170, 80)),   # laranja
+            ("evening",       0.72, 0.85, (200, 120, 200)),  # roxo
+            ("night",         0.85, 1.00, (120, 120, 180)),  # azul frio
+        ]
 
+        # Barra superior
+        self.top_bar_row_1_height = 40  # recursos + menu
+        self.top_bar_row_2_height = 28  # relógio
+        self.top_bar_height = self.top_bar_row_1_height + self.top_bar_row_2_height
+        self.top_bar_alpha = 180
+        
         self.resource_icons = {}
         self.resource_icon_size = 32  # tamanho dos ícones na barra superior
 
@@ -112,6 +124,12 @@ class HUD:
         self.create_main_buttons()
         self.create_build_buttons()
         self.hover_tooltip = None
+
+    def get_day_period(self, time_ratio):
+        for name, start, end, color in self.day_periods:
+            if start <= time_ratio < end:
+                return name, color
+        return "unknown", (255, 255, 255)
 
     def get_options_tabs_texts(self):
         """Retorna os textos das abas traduzidos"""
@@ -440,7 +458,7 @@ class HUD:
                         return "menu_save_clicked"
 
         return None
-    
+
     def open_options(self):
         self.options_popup_open = True
         self.current_options_tab_key = "general" # Reseta para aba padrão
@@ -873,7 +891,7 @@ class HUD:
     def toggle_resources(self):
         self.expanded = not self.expanded
 
-    def draw_top_bar(self, surface, game_state):
+    def draw_top_bar(self, surface, game_state, time_manager=None):
 
         # FUNDO DA BARRA
         bg = pygame.Surface((surface.get_width(), self.top_bar_height), pygame.SRCALPHA)
@@ -883,7 +901,8 @@ class HUD:
         # RECURSOS (ESQUERDA)
         x = 10
         self.resource_icon_offset_y = -2  # negativo = sobe, positivo = desce
-        y = (self.top_bar_height - self.resource_icon_size) // 2 + self.resource_icon_offset_y
+        row1_y = 0
+        y = (self.top_bar_row_1_height - self.resource_icon_size) // 2 - 2
 
         self.resource_rects = {}  # salvar retângulos para tooltips
 
@@ -920,7 +939,7 @@ class HUD:
         # BOTÃO HAMBURGUER (DIREITA)
         self.menu_button_rect.topleft = (
             surface.get_width() - self.menu_button_size - 10,
-            (self.top_bar_height - self.menu_button_size) // 2
+            (self.top_bar_row_1_height - self.menu_button_size) // 2
         )
 
         self.draw_hamburger_button(surface, self.menu_button_rect)
@@ -929,12 +948,51 @@ class HUD:
         if self.menu_open:
             self.draw_top_menu(surface)
 
+        # LINHA DO RELÓGIO
+        self.draw_clock_bar(surface, time_manager)
+
+    def draw_clock_bar(self, surface, time_manager):
+        if not time_manager:
+            return
+
+        row2_y = self.top_bar_row_1_height
+        width = surface.get_width()
+        height = self.top_bar_row_2_height
+
+        # fundo levemente diferente
+        bg = pygame.Surface((width, height), pygame.SRCALPHA)
+        bg.fill((40, 40, 40, 200))
+        surface.blit(bg, (0, row2_y))
+
+        time_ratio = time_manager.get_time_of_day()
+        period_name, period_color = self.get_day_period(time_ratio)
+
+        # texto do tempo
+        time_text = time_manager.get_formatted_time()
+        
+        time_text_formated = (self.i18n.get("time.day", "Day") + " " + time_text)
+        period_text = self.i18n.get(f"time.{period_name}", period_name.replace("_", " ").title())
+
+        clock_surface = self.font.render(
+            f"{time_text_formated} • {period_text}",
+            True,
+            period_color
+        )
+
+        surface.blit(
+            clock_surface,
+            (
+                (width - clock_surface.get_width()) // 2,
+                row2_y + (height - clock_surface.get_height()) // 2
+            )
+        )
+
     def draw_top_menu(self, surface):
         width = self.top_menu_width
         height = self.top_menu_height
 
         x = self.menu_button_rect.right - width
-        y = int(self.top_menu_y)
+        y = self.top_bar_height + int(self.top_menu_y)
 
         # Fundo do menu
         bg = pygame.Surface((width, height), pygame.SRCALPHA)

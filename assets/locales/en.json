@@ -64,5 +64,15 @@
         "de": "German",
         "es": "Spanish",
         "fr": "French"
+    },
+    "time": {
+        "day": "Day",
+        "early_morning": "Early Morning",
+        "morning": "Morning",
+        "midday": "Midday",
+        "afternoon": "Afternoon",
+        "evening": "Evening",
+        "night": "Night",
+        "late_night": "Late Night"
     }
 }

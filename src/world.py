@@ -162,41 +162,61 @@ class World:
         self._update_population_stats(game_state)
     
     def _produce_resources(self, game_state):
-        """Produz recursos de todos os prédios de produção"""
+        """Produz recursos de todos os prédios de produção baseado nos trabalhadores"""
+        total_production = {}
+        
         for building in self.buildings:
-            if building.production_rate:
-                for resource, amount in building.production_rate.items():
-                    # A produção depende do número de trabalhadores
-                    actual_production = amount * len(building.workers)
-                    if actual_production > 0:
-                        game_state.add_resource(resource, actual_production)
-                        print(f"{building.type} produziu {actual_production} {resource}")
+            # Calcular produção diária do prédio
+            daily_production = building.calculate_daily_production()
+            
+            # Somar à produção total
+            for resource, amount in daily_production.items():
+                if amount > 0:
+                    if resource not in total_production:
+                        total_production[resource] = 0
+                    total_production[resource] += amount
+                    
+                    # Adicionar recursos ao game_state
+                    game_state.add_resource(resource, amount)
+                    
+                    # Log detalhado
+                    print(f"{building.type} (com {len(building.workers)} trabalhadores) produziu {amount} {resource}")
+        
+        # Log resumido da produção total do dia
+        if total_production:
+            print(f"Produção total do dia: {total_production}")
 
     def _consume_resources(self, game_state):
         """Consome recursos (comida dos habitantes)"""
-        total_consumption = 0
-        
-        # Calcular consumo total de comida
-        for building in self.buildings:
-            if building.consumption_rate:
-                for resource, amount in building.consumption_rate.items():
-                    # Consumo dos trabalhadores
-                    actual_consumption = amount * len(building.workers)
-                    total_consumption += actual_consumption
-        
-        # Consumo dos habitantes (1 comida por habitante por dia)
-        total_population = len(self.villagers)
-        total_consumption += total_population
+        # Consumo de comida: 1 unidade por habitante por dia
+        total_consumption = len(self.villagers)
         
         # Consumir recursos
         if game_state.resources.get("food", 0) >= total_consumption:
             game_state.resources["food"] -= total_consumption
+            print(f"Consumo diário: {total_consumption} comida (para {len(self.villagers)} habitantes)")
         else:
             # Fome - reduz felicidade dos aldeões
+            shortage = total_consumption - game_state.resources.get("food", 0)
             game_state.resources["food"] = 0
+            
             for villager in self.villagers:
-                villager.happiness = max(0, villager.happiness - 20)
+                if hasattr(villager, 'happiness'):
+                    # Quanto mais falta de comida, maior a redução de felicidade
+                    happiness_reduction = min(30, shortage * 2)
+                    villager.happiness = max(0, villager.happiness - happiness_reduction)
+            
+            print(f"FOME! Falta {shortage} comida. Felicidade dos aldeões reduzida.")
     
+    def _update_happiness(self, game_state):
+        """Atualiza felicidade baseada em condições"""
+        # Aqui futuramente podemos adicionar mais fatores de felicidade
+        # Por enquanto, apenas logamos
+        total_happiness = sum(v.happiness for v in self.villagers if hasattr(v, 'happiness'))
+        avg_happiness = total_happiness / len(self.villagers) if self.villagers else 0
+        
+        print(f"Felicidade média dos aldeões: {avg_happiness:.1f}%")
+
     def _update_population_stats(self, game_state):
         """Atualiza estatísticas da população no game_state"""
         # Contar habitantes com e sem moradia

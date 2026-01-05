@@ -39,4 +39,4 @@ class TimeManager:
         """Retorna o tempo formatado"""
         hours = int((self.current_time / self.day_duration) * 24)
         minutes = int(((self.current_time / self.day_duration) * 24 * 60) % 60)
-        return f"Day {self.current_day}, {hours:02d}:{minutes:02d}"
+        return f"{self.current_day}, {hours:02d}:{minutes:02d}"
