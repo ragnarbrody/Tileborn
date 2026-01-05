@@ -58,5 +58,12 @@
         "without_housing": "Sem casa",
         "camera_movement": "Movimento da câmera",
         "select_language": "Selecione o Idioma"
+    },
+    "languages": {
+        "en": "Inglês",
+        "pt": "Português",
+        "de": "Alemão",
+        "es": "Espanhol",
+        "fr": "Francês"
     }
 }

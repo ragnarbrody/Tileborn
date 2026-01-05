@@ -1,0 +1,68 @@
+{
+    "menu": {
+        "save": "Speichern",
+        "options": "Optionen",
+        "quit": "Beenden"
+    },
+    "options": {
+        "general": "Allgemein",
+        "display": "Anzeige",
+        "audio": "Audio",
+        "language": "Sprache",
+        "auto_save": "Autosave-Häufigkeit",
+        "game_settings": "Spieleinstellungen",
+        "controls": "Steuerung"
+    },
+    "resources": {
+        "wood": "Holz",
+        "stone": "Stein",
+        "food": "Nahrung",
+        "gold": "Gold",
+        "population": "Bevölkerung"
+    },
+    "buildings": {
+        "house": "Haus",
+        "sawmill": "Sägewerk",
+        "townhall": "Rathaus",
+        "dirt_road": "Schotterstraße"
+    },
+    "descriptions": {
+        "wood_desc": "Wird zum Bau von Häusern und Strukturen verwendet.",
+        "stone_desc": "Wird zum Bau starker Strukturen verwendet.",
+        "food_desc": "Ernährt Ihre Bevölkerung.",
+        "gold_desc": "Wird für Handel und Verbesserungen verwendet.",
+        "population_desc": "Anzahl Ihrer Bürger.",
+        "house_desc": "Ein Zuhause für Ihre Bewohner.",
+        "sawmill_desc": "Ein Ort, um Holz zu bekommen.",
+        "townhall_desc": "Ein Ort, an dem die Stadt verwaltet wird.",
+        "dirt_road_desc": "Etwas, auf dem Ihre Bürger gehen können.",
+        "build_mode": "Ermöglicht Bauen (Shortcut: B)"
+    },
+    "ui": {
+        "build_mode": "Baumodus",
+        "settings_will_be_implemented": "Einstellungen werden bald implementiert...",
+        "general_settings": "Allgemeine Einstellungen",
+        "display_settings": "Anzeigeeinstellungen",
+        "audio_settings": "Audioeinstellungen",
+        "controls_settings": "Steuerungseinstellungen",
+        "resolution": "Auflösung",
+        "fullscreen": "Vollbild",
+        "vsync": "VSync",
+        "master_volume": "Hauptlautstärke",
+        "music_volume": "Musiklautstärke",
+        "sound_effects": "Soundeffekte",
+        "consumption_per_day": "Verbrauch pro Tag",
+        "production_per_day": "Produktion pro Tag",
+        "with_housing": "Mit Wohnung",
+        "without_housing": "Ohne Wohnung",
+        "camera_movement": "Kamerabewegung",
+        "select_language": "Sprache auswählen"
+    },
+    "languages": {
+        "en": "Englisch",
+        "pt": "Portugiesisch",
+        "de": "Deutsch",
+        "es": "Spanisch",
+        "fr": "Französisch"
+    }
+}

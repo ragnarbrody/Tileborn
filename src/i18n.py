@@ -133,6 +133,25 @@ class I18n:
         except (KeyError, TypeError):
             return default if default is not None else key
     
+    def get_language_name(self, lang_code):
+        """Retorna o nome do idioma no próprio idioma"""
+        try:
+            lang_file = self.locales_dir / f"{lang_code}.json"
+            with open(lang_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                # Tenta obter do campo "languages" primeiro, senão usa código
+                return data.get("languages", {}).get(lang_code, lang_code)
+        except Exception as e:
+            print(f"Erro ao obter nome do idioma {lang_code}: {e}")
+            return lang_code
+
+    def get_all_language_names(self):
+        """Retorna dicionário com códigos e nomes de todos os idiomas disponíveis"""
+        languages = {}
+        for lang_code in self.get_available_languages():
+            languages[lang_code] = self.get_language_name(lang_code)
+        return languages
+
     def get_available_languages(self):
         """Retorna lista de idiomas disponíveis"""
         languages = []

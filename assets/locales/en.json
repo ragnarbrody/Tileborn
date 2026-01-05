@@ -57,5 +57,12 @@
         "without_housing": "Without housing",
         "camera_movement": "Camera movement",
         "select_language": "Select Language"
+    },
+    "languages": {
+        "en": "English",
+        "pt": "Portuguese",
+        "de": "German",
+        "es": "Spanish",
+        "fr": "French"
     }
 }

@@ -303,9 +303,16 @@ class HUD:
 
             # Se estiver selecionando idioma, processa primeiro
             if self.selecting_language:
-                # Calcular posição do seletor de idioma
+                # CALCULA DINAMICAMENTE baseado no número de idiomas
+                button_height = 30
+                button_spacing = 5
+                padding_top = 40
+                padding_bottom = 10
+                
+                num_languages = len(self.available_languages)
+                selector_height = padding_top + (button_height * num_languages) + (button_spacing * (num_languages - 1)) + padding_bottom
                 selector_width = 200
-                selector_height = 120
+                
                 selector_x = popup_rect.x + (popup_rect.width - selector_width) // 2
                 selector_y = popup_rect.y + (popup_rect.height - selector_height) // 2
                 
@@ -317,13 +324,12 @@ class HUD:
                     return "language_selector_closed"
                 
                 # Verifica cliques nos botões de idioma
-                button_height = 30
-                button_y = selector_y + 40
+                button_y = selector_y + padding_top
                 
                 for i, lang_code in enumerate(self.available_languages):
                     button_rect = pygame.Rect(
                         selector_x + 20,
-                        button_y + i * (button_height + 5),
+                        button_y + i * (button_height + button_spacing),
                         selector_width - 40,
                         button_height
                     )
@@ -332,6 +338,8 @@ class HUD:
                         if lang_code != self.selected_language:
                             self.selected_language = lang_code
                             self.i18n.load_language(lang_code)
+                            # IMPORTANTE: Atualiza textos do HUD antes de recarregar tudo
+                            self.update_language_texts()
                             reload_all_texts(self)
                         self.selecting_language = False
                         return f"language_changed_to_{lang_code}"
@@ -484,12 +492,47 @@ class HUD:
     
     def update_language_texts(self):
         """Atualiza todos os textos quando o idioma muda"""
+        print(f"Atualizando textos para idioma: {self.i18n.current_lang}")
+        
         # Atualiza menu hamburguer
         self.top_menu_options = [
             self.i18n.get("menu.save", "Save"),
             self.i18n.get("menu.options", "Options"),
             self.i18n.get("menu.quit", "Quit")
         ]
+        
+        # Atualiza conteúdo das abas
+        self.tab_content = {
+            self.i18n.get("options.general", "General"): [
+                self.i18n.get("options.language", "Language"),
+                self.i18n.get("options.auto_save", "Auto-save frequency"),
+                self.i18n.get("options.game_settings", "Game settings")
+            ],
+            self.i18n.get("options.display", "Display"): [
+                self.i18n.get("ui.resolution", "Resolution"),
+                self.i18n.get("ui.fullscreen", "Fullscreen"),
+                self.i18n.get("ui.vsync", "VSync")
+            ],
+            self.i18n.get("options.audio", "Audio"): [
+                self.i18n.get("ui.master_volume", "Master volume"),
+                self.i18n.get("ui.music_volume", "Music volume"),
+                self.i18n.get("ui.sound_effects", "Sound effects")
+            ],
+            self.i18n.get("options.controls", "Controls"): [
+                self.i18n.get("ui.camera_movement", "Camera movement")
+            ]
+        }
+        
+        # Atualiza altura do menu baseado no novo número de opções
+        self.top_menu_height = len(self.top_menu_options) * self.top_menu_option_height
+        
+        # Se o menu estava aberto, ajusta a posição alvo
+        if self.menu_open:
+            self.top_menu_target_y = self.top_bar_height
+        else:
+            self.top_menu_target_y = -self.top_menu_height
+        
+        print(f"Textos atualizados com sucesso")
     
     def is_build_menu_open(self):
         return self.build_menu_open
@@ -609,8 +652,14 @@ class HUD:
                 25
             )
             
-            # Exibir idioma atual
-            lang_name = "English" if self.selected_language == "en" else "Português"
+            # Exibir idioma atual (usando i18n)
+            try:
+                language_names = self.i18n.get_all_language_names()
+                lang_name = language_names.get(self.selected_language, self.selected_language)
+            except AttributeError:
+                # Fallback
+                lang_name = "English" if self.selected_language == "en" else "Português"
+                
             lang_button_text = option_font.render(lang_name, True, (255, 255, 255))
             
             # Desenhar botão
@@ -685,8 +734,16 @@ class HUD:
 
     def draw_language_selector(self, popup_surf, popup_rect):
         """Desenha um popup para selecionar idioma"""
+        # Calcula altura dinâmica baseada no número de idiomas
+        button_height = 30
+        button_spacing = 5
+        padding_top = 40
+        padding_bottom = 10
+        
+        num_languages = len(self.available_languages)
+        selector_height = padding_top + (button_height * num_languages) + (button_spacing * (num_languages - 1)) + padding_bottom
         selector_width = 200
-        selector_height = 120
+
         selector_x = (popup_rect.width - selector_width) // 2
         selector_y = (popup_rect.height - selector_height) // 2
         
@@ -703,17 +760,24 @@ class HUD:
         
         # Botões de idioma
         button_font = pygame.font.SysFont(None, 18)
-        button_height = 30
-        button_y = selector_y + 40
+        button_y = selector_y + padding_top
         
-        for i, lang_code in enumerate(self.available_languages):
-            # Nomes dos idiomas
-            lang_names = {
+        # Obtém todos os nomes dos idiomas da classe i18n
+        try:
+            language_names = self.i18n.get_all_language_names()
+        except AttributeError:
+            # Fallback se o método não existir
+            language_names = {
                 "en": "English",
                 "pt": "Português",
-                "de": "Deutsch"
+                "de": "Deutsch",
+                "es": "Español",
+                "fr": "Français"
             }
-            lang_name = lang_names.get(lang_code, lang_code)
+
+        for i, lang_code in enumerate(self.available_languages):
+            # Obtém o nome do idioma
+            lang_name = language_names.get(lang_code, lang_code)
 
             button_rect = pygame.Rect(
                 selector_x + 20,
@@ -724,15 +788,18 @@ class HUD:
             
             # Cor do botão
             if lang_code == self.selected_language:
-                color = (70, 130, 180)
+                color = (70, 130, 180)  # Azul para idioma selecionado
+                text_color = (255, 255, 255)
             else:
-                color = (60, 60, 70)
+                color = (60, 60, 70)    # Cinza para outros
+                text_color = (200, 200, 200)
             
+            # Fundo do botão
             pygame.draw.rect(popup_surf, color, button_rect, border_radius=4)
             pygame.draw.rect(popup_surf, (100, 100, 150), button_rect, 1, border_radius=4)
             
             # Texto do botão
-            lang_text = button_font.render(lang_name, True, (255, 255, 255))
+            lang_text = button_font.render(lang_name, True, text_color)
             text_rect = lang_text.get_rect(center=button_rect.center)
             popup_surf.blit(lang_text, text_rect)
 
