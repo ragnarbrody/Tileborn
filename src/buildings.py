@@ -16,6 +16,91 @@ class BuildingInstance:
         self.y = y
         self.sprite = sprite
 
+        # atributos para sistema de habitantes
+        self.inhabitants = []  # Lista de aldeões que moram aqui
+        self.workers = []      # Lista de aldeões que trabalham aqui
+        self.max_inhabitants = 0
+        self.max_workers = 0
+        self.production_rate = {}  # Recursos produzidos por dia
+        self.consumption_rate = {} # Recursos consumidos por dia
+        
+        # Inicializar atributos baseados no tipo
+        self._initialize_attributes()
+
+    def _initialize_attributes(self):
+        """Inicializa os atributos do prédio baseado no tipo"""
+        building_data = get_building_data().get(self.type, {})
+        
+        if self.type == BuildingType.HOUSE:
+            self.max_inhabitants = 4  # 4 pessoas por casa
+            self.max_workers = 0
+            
+        elif self.type == BuildingType.SAWMILL:
+            self.max_inhabitants = 0
+            self.max_workers = 3  # 3 trabalhadores na serraria
+            self.production_rate = {ResourceType.WOOD: 5}  # 5 madeiras por dia
+            self.consumption_rate = {ResourceType.FOOD: 3}  # 3 comidas por dia
+            
+        elif self.type == BuildingType.TOWNHALL:
+            self.max_inhabitants = 0
+            self.max_workers = 5
+            self.production_rate = {}
+            self.consumption_rate = {ResourceType.FOOD: 5}
+            
+        elif self.type == BuildingType.DIRT_ROAD:
+            self.max_inhabitants = 0
+            self.max_workers = 0
+
+    @property
+    def size(self):
+        """Retorna o tamanho do prédio em tiles"""
+        building_data = get_building_data().get(self.type, {})
+        return building_data.get("size", (1, 1))
+
+    @property
+    def has_space_for_inhabitants(self):
+        """Verifica se tem espaço para mais moradores"""
+        return len(self.inhabitants) < self.max_inhabitants
+
+    @property
+    def has_space_for_workers(self):
+        """Verifica se tem espaço para mais trabalhadores"""
+        return len(self.workers) < self.max_workers
+
+    def add_inhabitant(self, villager):
+        """Adiciona um morador ao prédio"""
+        if self.has_space_for_inhabitants and villager not in self.inhabitants:
+            self.inhabitants.append(villager)
+            villager.home_building = self
+            return True
+        return False
+
+    def add_worker(self, villager):
+        """Adiciona um trabalhador ao prédio"""
+        if self.has_space_for_workers and villager not in self.workers:
+            self.workers.append(villager)
+            villager.workplace = self
+            return True
+        return False
+
+    def remove_inhabitant(self, villager):
+        """Remove um morador do prédio"""
+        if villager in self.inhabitants:
+            self.inhabitants.remove(villager)
+            if villager.home_building == self:
+                villager.home_building = None
+            return True
+        return False
+
+    def remove_worker(self, villager):
+        """Remove um trabalhador do prédio"""
+        if villager in self.workers:
+            self.workers.remove(villager)
+            if villager.workplace == self:
+                villager.workplace = None
+            return True
+        return False
+
 def get_building_data():
     """Retorna os dados de construções, sempre atualizados com o idioma atual"""
     return {

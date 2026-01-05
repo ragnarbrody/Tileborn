@@ -21,7 +21,7 @@ TILE_DATA = {
     TileType.WATER: {
         "walkable": False,
         "variants": [
-            {"sprite": TILES_DIR / "water_1.png", "weight": 100}
+            {"sprite": TILES_DIR / "water_2.png", "weight": 100}
         ]
     }
 }

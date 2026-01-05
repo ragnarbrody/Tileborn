@@ -15,7 +15,7 @@ from buildings import BuildingType
 from game_state import GameState
 from paths import UI_ICONS, BUILDINGS_ICONS, TILES_DIR, FONTS_DIR
 from i18n import i18n
-
+from time_manager import TimeManager
 
 def main():
     pygame.init()
@@ -52,6 +52,9 @@ def main():
 
         hud.update({}, dt, mouse_pos)
         hud.update_tooltip(mouse_pos, game_state)
+
+        # ATUALIZAR MUNDO (incluindo tempo e aldeões)
+        world.update(dt, game_state)
         
         for event in pygame.event.get():
             if event.type == pygame.QUIT:

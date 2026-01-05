@@ -5,8 +5,10 @@ import pygame
 
 from settings import MAP_WIDTH, MAP_HEIGHT, TILE_SIZE
 from tiles import TileType, TILE_DATA
-from buildings import get_building_data, BuildingInstance
+from buildings import get_building_data, BuildingInstance, BuildingType
 from decorations import Tree
+from villager import Villager
+from time_manager import TimeManager 
 
 class World:
     def __init__(self):
@@ -15,8 +17,12 @@ class World:
         self.buildings = [] # lista de BuildingInstance
         self.occupied_tiles = set()  # tiles ocupados
         self.decorations = []  # árvores, pedras etcs
+        self.villagers = []
         self.tile_variants = [[None for _ in range(self.width)]
                       for _ in range(self.height)]
+        
+        # Gerenciador de tempo
+        self.time_manager = TimeManager(day_duration_seconds=300)  # 5 minutos por dia
 
         self.tile_sprites = {}
         self.tile_weights = {}
@@ -126,6 +132,88 @@ class World:
                         for tx in range(x, x + tree.width):
                             self.occupied_tiles.add((tx, ty))
 
+    def update(self, dt, game_state):
+        """Atualiza o mundo (incluindo tempo e aldeões)"""
+        # Atualizar tempo
+        new_day_started = self.time_manager.update(dt)
+        
+        if new_day_started:
+            self._process_day_cycle(game_state)
+        
+        # Atualizar aldeões
+        for villager in self.villagers:
+            villager.update(dt, self)
+        
+        # ATUALIZAR POPULAÇÃO NO GAME_STATE A CADA FRAME
+        # Isso garante que o HUD sempre mostre valores atualizados
+        self.update_population_in_game_state(game_state)
+    
+    def _process_day_cycle(self, game_state):
+        """Processa eventos que acontecem no início de cada dia"""
+        print(f"Novo dia começou: Dia {self.time_manager.current_day}")
+        
+        # Produzir recursos dos prédios
+        self._produce_resources(game_state)
+        
+        # Consumir recursos
+        self._consume_resources(game_state)
+        
+        # Atualizar população
+        self._update_population_stats(game_state)
+    
+    def _produce_resources(self, game_state):
+        """Produz recursos de todos os prédios de produção"""
+        for building in self.buildings:
+            if building.production_rate:
+                for resource, amount in building.production_rate.items():
+                    # A produção depende do número de trabalhadores
+                    actual_production = amount * len(building.workers)
+                    if actual_production > 0:
+                        game_state.add_resource(resource, actual_production)
+                        print(f"{building.type} produziu {actual_production} {resource}")
+
+    def _consume_resources(self, game_state):
+        """Consome recursos (comida dos habitantes)"""
+        total_consumption = 0
+        
+        # Calcular consumo total de comida
+        for building in self.buildings:
+            if building.consumption_rate:
+                for resource, amount in building.consumption_rate.items():
+                    # Consumo dos trabalhadores
+                    actual_consumption = amount * len(building.workers)
+                    total_consumption += actual_consumption
+        
+        # Consumo dos habitantes (1 comida por habitante por dia)
+        total_population = len(self.villagers)
+        total_consumption += total_population
+        
+        # Consumir recursos
+        if game_state.resources.get("food", 0) >= total_consumption:
+            game_state.resources["food"] -= total_consumption
+        else:
+            # Fome - reduz felicidade dos aldeões
+            game_state.resources["food"] = 0
+            for villager in self.villagers:
+                villager.happiness = max(0, villager.happiness - 20)
+    
+    def _update_population_stats(self, game_state):
+        """Atualiza estatísticas da população no game_state"""
+        # Contar habitantes com e sem moradia
+        with_housing = 0
+        without_housing = 0
+        
+        for villager in self.villagers:
+            if villager.home_building:
+                with_housing += 1
+            else:
+                without_housing += 1
+        
+        game_state.resources["population"] = {
+            "with_housing": with_housing,
+            "without_housing": without_housing
+        }
+
     # RENDER
     def draw(self, surface, camera):
         start_x = int(camera.x // TILE_SIZE)
@@ -164,6 +252,10 @@ class World:
             screen_x, screen_y = camera.apply(world_x, world_y)
 
             surface.blit(building.sprite, (screen_x, screen_y))
+
+        # Desenhar aldeões
+        for villager in self.villagers:
+            villager.draw(surface, camera)
 
     def draw_highlight(self, surface, camera, tile_x, tile_y):
         if not (0 <= tile_x < self.width and 0 <= tile_y < self.height):
@@ -261,6 +353,123 @@ class World:
             for x in range(tile_x, tile_x + w):
                 self.occupied_tiles.add((x, y))
 
+        # Lógica especial para cada tipo de construção
+        if building_type == BuildingType.TOWNHALL:
+            self._spawn_townhall_villagers(building, game_state)
+        elif building_type == BuildingType.HOUSE:
+            self._assign_villagers_to_house(building, game_state)
+
         return True
+    
+    def _spawn_townhall_villagers(self, townhall, game_state):
+        """Spawna 3 aldeões quando uma prefeitura é construída"""
+
+        print(f"DEBUG: Tentando spawnar aldeões para prefeitura")
+        print(f"DEBUG: Townhall type: {townhall.type}")
+        print(f"DEBUG: Townhall pos: ({townhall.x}, {townhall.y})")
+
+        # Verificar se o building tem os atributos necessários
+        if not hasattr(townhall, 'size'):
+            print(f"DEBUG: Townhall não tem atributo 'size'")
+            # Usar tamanho padrão da prefeitura
+            building_data = self.building_data.get(townhall.type, {})
+            building_size = building_data.get("size", (8, 6))
+        else:
+            building_size = townhall.size
+            
+        print(f"DEBUG: Townhall size: {building_size}")
+
+        for i in range(3):
+            # Encontrar posição próxima à prefeitura
+            spawn_x, spawn_y = self._find_nearby_empty_tile(
+                townhall.x, townhall.y, townhall.size[0], townhall.size[1]
+            )
+            
+            if spawn_x is not None and spawn_y is not None:
+                # Criar aldeão
+                villager = Villager(spawn_x, spawn_y, home_building=townhall)
+                self.villagers.append(villager)
+                
+                # Tentar atribuir à prefeitura como moradia (se tiver espaço)
+                if hasattr(townhall, 'add_inhabitant') and hasattr(townhall, 'has_space_for_inhabitants'):
+                    if townhall.has_space_for_inhabitants:
+                        townhall.add_inhabitant(villager)
+                        print(f"DEBUG: Aldeão {villager.name} atribuído à prefeitura")
+                    else:
+                        print(f"DEBUG: Prefeitura não tem espaço para mais habitantes")
+                else:
+                    print(f"DEBUG: Townhall não tem métodos de habitantes")
+
+                print(f"Aldeão {villager.name} spawnou na prefeitura")
+                self.update_population_in_game_state(game_state)
+            else:
+                print(f"DEBUG: Não encontrou tile vazio para spawnar aldeão")
+    
+    def _assign_villagers_to_house(self, house, game_state):
+        """Atribui aldeões sem casa a uma nova casa"""
+        print(f"DEBUG: Tentando atribuir aldeões à casa")
+        
+        # Procurar aldeões sem casa
+        homeless_villagers = []
+        for v in self.villagers:
+            if not hasattr(v, 'home_building') or not v.home_building:
+                homeless_villagers.append(v)
+        
+        print(f"DEBUG: Aldeões sem casa: {len(homeless_villagers)}")
+        
+        for villager in homeless_villagers:
+            if hasattr(house, 'add_inhabitant') and hasattr(house, 'has_space_for_inhabitants'):
+                if house.has_space_for_inhabitants:
+                    house.add_inhabitant(villager)
+                    print(f"{villager.name} mudou-se para uma nova casa")
+                else:
+                    print(f"DEBUG: Casa não tem mais espaço")
+                    break
+            else:
+                print(f"DEBUG: Casa não tem métodos de habitantes")
+                break
+        
+        # Atualizar população no game_state
+        self.update_population_in_game_state(game_state)
+    
+    def _find_nearby_empty_tile(self, center_x, center_y, width, height, max_radius=5):
+        """Encontra um tile vazio próximo a uma construção"""
+        for radius in range(1, max_radius + 1):
+            for dx in range(-radius, radius + 1):
+                for dy in range(-radius, radius + 1):
+                    x = center_x + dx
+                    y = center_y + dy
+                    
+                    # Verificar se o tile está livre
+                    if (0 <= x < self.width and 
+                        0 <= y < self.height and
+                        self.grid[y][x] != TileType.WATER and
+                        (x, y) not in self.occupied_tiles):
+                        return x, y
+        return None, None
+    
+    def update_population_in_game_state(self, game_state):
+        """Atualiza as estatísticas de população no game_state"""
+        if not game_state:
+            return
+        
+        # Contar habitantes com e sem moradia
+        with_housing = 0
+        without_housing = 0
+        
+        for villager in self.villagers:
+            if hasattr(villager, 'home_building') and villager.home_building:
+                with_housing += 1
+            else:
+                without_housing += 1
+        
+        # Atualizar o game_state
+        game_state.resources["population"] = {
+            "with_housing": with_housing,
+            "without_housing": without_housing,
+            "total": with_housing + without_housing
+        }
+        
+        print(f"DEBUG: População atualizada: {with_housing} com casa, {without_housing} sem casa")
     
     
