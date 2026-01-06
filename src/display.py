@@ -21,7 +21,7 @@ class DisplayManager:
         self.view_width = max(MIN_WIDTH, win_w)
         self.view_height = max(MIN_HEIGHT, win_h)
 
-        # Surface onde tudo será desenhado
+        # Surface onde tudo vai ser desenhado
         self.surface = pygame.Surface(
             (self.view_width, self.view_height)
         )

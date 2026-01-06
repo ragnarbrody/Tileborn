@@ -16,12 +16,12 @@ class I18n:
             return
         self._initialized = True
 
-        # Detectar se está rodando como executável
+        # Detecta se tá rodando como executável
         if getattr(sys, 'frozen', False):
-            # Para executável PyInstaller
+            # Pro executável PyInstaller
             base_path = Path(sys._MEIPASS)
         else:
-            # Para desenvolvimento
+            # Pra desenvolvimento
             base_path = Path(__file__).parent.parent
         
         # Caminho para a pasta de idiomas
@@ -49,7 +49,7 @@ class I18n:
             print(f"Idioma carregado: {lang_code}")
         except Exception as e:
             print(f"Erro ao carregar idioma {lang_code}: {e}")
-            # Fallback para inglês
+            # Fallback pro inglês
             self.translations = {}
     
     def create_default_english_file(self):
@@ -139,7 +139,7 @@ class I18n:
             lang_file = self.locales_dir / f"{lang_code}.json"
             with open(lang_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-                # Tenta obter do campo "languages" primeiro, senão usa código
+                # Tenta pegar do campo "languages" primeiro, senão usa código
                 return data.get("languages", {}).get(lang_code, lang_code)
         except Exception as e:
             print(f"Erro ao obter nome do idioma {lang_code}: {e}")
@@ -170,7 +170,7 @@ class I18n:
                 languages.append(file.stem)
         else:
             print(f"ERRO: Diretório não encontrado!")
-            # Tenta caminho alternativo para executável
+            # Tenta caminho alternativo pra executável
             import os
             if getattr(sys, 'frozen', False):
                 # Para executável PyInstaller

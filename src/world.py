@@ -2,6 +2,7 @@
 
 import random
 import pygame
+import math
 
 from settings import MAP_WIDTH, MAP_HEIGHT, TILE_SIZE
 from tiles import TileType, TILE_DATA
@@ -22,12 +23,12 @@ class World:
                       for _ in range(self.height)]
         
         # Gerenciador de tempo
-        self.time_manager = TimeManager(day_duration_seconds=300)  # 5 minutos por dia
+        self.time_manager = TimeManager(day_duration_seconds=300)  # 300 sec = 5 minutos por dia
 
         self.tile_sprites = {}
         self.tile_weights = {}
 
-        # Dados de construções (serão atualizados quando o idioma mudar)
+        # Dados de construções (vão ser atualizados quando o idioma mudar)
         self._building_data = None
 
         for tile, data in TILE_DATA.items():
@@ -127,38 +128,38 @@ class World:
 
                     self.decorations.append(tree)
 
-                    # Marcar tiles ocupados
+                    # Marca os tiles ocupados
                     for ty in range(y - (tree.height - 1), y + 1):
                         for tx in range(x, x + tree.width):
                             self.occupied_tiles.add((tx, ty))
 
     def update(self, dt, game_state):
         """Atualiza o mundo (incluindo tempo e aldeões)"""
-        # Atualizar tempo
+        # Atualiza o tempo
         new_day_started = self.time_manager.update(dt)
         
         if new_day_started:
             self._process_day_cycle(game_state)
         
-        # Atualizar aldeões
+        # Atualiza os aldeões
         for villager in self.villagers:
             villager.update(dt, self)
         
-        # ATUALIZAR POPULAÇÃO NO GAME_STATE A CADA FRAME
-        # Isso garante que o HUD sempre mostre valores atualizados
+        # Atualiza a população no game_state a cada frame
+        # meio pesado, mas garante que o HUD sempre mostre valores atualizados
         self.update_population_in_game_state(game_state)
     
     def _process_day_cycle(self, game_state):
         """Processa eventos que acontecem no início de cada dia"""
         print(f"Novo dia começou: Dia {self.time_manager.current_day}")
         
-        # Produzir recursos dos prédios
+        # Produz os recursos dos prédios
         self._produce_resources(game_state)
         
-        # Consumir recursos
+        # Consome recursos
         self._consume_resources(game_state)
         
-        # Atualizar população
+        # Atualiza a população
         self._update_population_stats(game_state)
     
     def _produce_resources(self, game_state):
@@ -166,17 +167,17 @@ class World:
         total_production = {}
         
         for building in self.buildings:
-            # Calcular produção diária do prédio
+            # Calcula a produção diária do prédio
             daily_production = building.calculate_daily_production()
             
-            # Somar à produção total
+            # Somar na produção total
             for resource, amount in daily_production.items():
                 if amount > 0:
                     if resource not in total_production:
                         total_production[resource] = 0
                     total_production[resource] += amount
                     
-                    # Adicionar recursos ao game_state
+                    # Adiciona os recursos ao game_state
                     game_state.add_resource(resource, amount)
                     
                     # Log detalhado
@@ -188,7 +189,9 @@ class World:
 
     def _consume_resources(self, game_state):
         """Consome recursos (comida dos habitantes)"""
-        # Consumo de comida: 1 unidade por habitante por dia
+        # ainda não implementado ***
+
+        # Consumo de comida: 1 unidade por habitante por dia (por enquanto)
         total_consumption = len(self.villagers)
         
         # Consumir recursos
@@ -210,8 +213,8 @@ class World:
     
     def _update_happiness(self, game_state):
         """Atualiza felicidade baseada em condições"""
-        # Aqui futuramente podemos adicionar mais fatores de felicidade
-        # Por enquanto, apenas logamos
+        # Aqui futuramente eu vou adicionar mais fatores de felicidade
+        # Por enquanto, eu to apenas 'logando'
         total_happiness = sum(v.happiness for v in self.villagers if hasattr(v, 'happiness'))
         avg_happiness = total_happiness / len(self.villagers) if self.villagers else 0
         
@@ -219,7 +222,7 @@ class World:
 
     def _update_population_stats(self, game_state):
         """Atualiza estatísticas da população no game_state"""
-        # Contar habitantes com e sem moradia
+        # Conta os habitantes com e sem moradia
         with_housing = 0
         without_housing = 0
         
@@ -245,7 +248,7 @@ class World:
         end_x = start_x + tiles_x
         end_y = start_y + tiles_y
 
-        # --- DESENHAR TERRENO ---
+        # Desenha o Terreno
         for y in range(start_y, end_y):
             for x in range(start_x, end_x):
                 if 0 <= x < self.width and 0 <= y < self.height:
@@ -260,11 +263,11 @@ class World:
 
                     surface.blit(sprite, (screen_x, screen_y))
 
-        # --- DESENHAR DECORAÇÕES (árvores etc) ---
+        # Desenha as decorações (árvores etc)
         for deco in self.decorations:
             deco.draw(surface, camera)
 
-        # Desenhar construções
+        # Desenha as construções
         for building in self.buildings:
             world_x = building.x * TILE_SIZE
             world_y = building.y * TILE_SIZE
@@ -273,7 +276,7 @@ class World:
 
             surface.blit(building.sprite, (screen_x, screen_y))
 
-        # Desenhar aldeões
+        # Desenha os aldeões
         for villager in self.villagers:
             villager.draw(surface, camera)
 
@@ -358,7 +361,7 @@ class World:
 
         w, h = data["size"]
 
-        # Carregar e redimensionar sprite
+        # Carrega e redimensiona o sprite
         sprite = pygame.image.load(data["sprite"]).convert_alpha()
         sprite = pygame.transform.scale(
             sprite,
@@ -368,12 +371,12 @@ class World:
         building = BuildingInstance(building_type, tile_x, tile_y, sprite)
         self.buildings.append(building)
 
-        # Marcar tiles ocupados
+        # Marca os tiles ocupados
         for y in range(tile_y, tile_y + h):
             for x in range(tile_x, tile_x + w):
                 self.occupied_tiles.add((x, y))
 
-        # Lógica especial para cada tipo de construção
+        # Lógica especial pra cada tipo de construção (tlvz eu mude isso depois)
         if building_type == BuildingType.TOWNHALL:
             self._spawn_townhall_villagers(building, game_state)
         elif building_type == BuildingType.HOUSE:
@@ -388,10 +391,10 @@ class World:
         print(f"DEBUG: Townhall type: {townhall.type}")
         print(f"DEBUG: Townhall pos: ({townhall.x}, {townhall.y})")
 
-        # Verificar se o building tem os atributos necessários
+        # Verifica se o building tem os atributos necessários
         if not hasattr(townhall, 'size'):
             print(f"DEBUG: Townhall não tem atributo 'size'")
-            # Usar tamanho padrão da prefeitura
+            # Usa o tamanho padrão da prefeitura
             building_data = self.building_data.get(townhall.type, {})
             building_size = building_data.get("size", (8, 6))
         else:
@@ -400,17 +403,17 @@ class World:
         print(f"DEBUG: Townhall size: {building_size}")
 
         for i in range(3):
-            # Encontrar posição próxima à prefeitura
+            # Encontra uma posição próxima à prefeitura
             spawn_x, spawn_y = self._find_nearby_empty_tile(
                 townhall.x, townhall.y, townhall.size[0], townhall.size[1]
             )
             
             if spawn_x is not None and spawn_y is not None:
-                # Criar aldeão
+                # Cria aldeão
                 villager = Villager(spawn_x, spawn_y, home_building=townhall)
                 self.villagers.append(villager)
                 
-                # Tentar atribuir à prefeitura como moradia (se tiver espaço)
+                # Tenta atribuir à prefeitura como moradia (se tiver espaço)
                 if hasattr(townhall, 'add_inhabitant') and hasattr(townhall, 'has_space_for_inhabitants'):
                     if townhall.has_space_for_inhabitants:
                         townhall.add_inhabitant(villager)
@@ -429,7 +432,7 @@ class World:
         """Atribui aldeões sem casa a uma nova casa"""
         print(f"DEBUG: Tentando atribuir aldeões à casa")
         
-        # Procurar aldeões sem casa
+        # Procura aldeões sem casa
         homeless_villagers = []
         for v in self.villagers:
             if not hasattr(v, 'home_building') or not v.home_building:
@@ -449,7 +452,7 @@ class World:
                 print(f"DEBUG: Casa não tem métodos de habitantes")
                 break
         
-        # Atualizar população no game_state
+        # Atualiza a população no game_state
         self.update_population_in_game_state(game_state)
     
     def _find_nearby_empty_tile(self, center_x, center_y, width, height, max_radius=5):
@@ -460,7 +463,7 @@ class World:
                     x = center_x + dx
                     y = center_y + dy
                     
-                    # Verificar se o tile está livre
+                    # Verifica se o tile tá livre
                     if (0 <= x < self.width and 
                         0 <= y < self.height and
                         self.grid[y][x] != TileType.WATER and
@@ -473,7 +476,7 @@ class World:
         if not game_state:
             return
         
-        # Contar habitantes com e sem moradia
+        # Conta habitantes com e sem moradia
         with_housing = 0
         without_housing = 0
         
@@ -483,7 +486,7 @@ class World:
             else:
                 without_housing += 1
         
-        # Atualizar o game_state
+        # Atualiza o game_state
         game_state.resources["population"] = {
             "with_housing": with_housing,
             "without_housing": without_housing,
@@ -491,5 +494,69 @@ class World:
         }
         
         print(f"DEBUG: População atualizada: {with_housing} com casa, {without_housing} sem casa")
+
+    def get_entity_at_tile(self, tile_x, tile_y):
+        """Retorna a construção que está no tile especificado"""
+        for building in self.buildings:
+            bx, by = building.x, building.y
+            bw, bh = building.size
+            
+            # Verifica se o tile tá dentro dos limites da construção
+            if bx <= tile_x < bx + bw and by <= tile_y < by + bh:
+                return building
+        
+        # Não encontrou construção
+        return None
     
+    def draw_selected_building_highlight(self, surface, camera, tile_x, tile_y, width, height):
+        """Desenha um highlight pulsante ao redor de um prédio"""
+        
+        # Calcula valor de pulsação baseado no tempo
+        current_time = pygame.time.get_ticks() / 1000.0  # Tempo em segundos
+        pulse_speed = 2.0  # Velocidade da pulsação (ciclos por segundo)
+        
+        # Usa seno pra criar um efeito de pulsação mais suave entre 0 e 1
+        pulse = (math.sin(current_time * math.pi * pulse_speed) + 1) / 2
+        
+        # Interpola entre dois tons de amarelo
+        dark_yellow = (200, 200, 0)    # Amarelo mais escuro
+        bright_yellow = (255, 255, 100) # Amarelo mais claro/branco
+        
+        # Interpola as cores (dá uma suavizada)
+        r = int(dark_yellow[0] + (bright_yellow[0] - dark_yellow[0]) * pulse)
+        g = int(dark_yellow[1] + (bright_yellow[1] - dark_yellow[1]) * pulse)
+        b = int(dark_yellow[2] + (bright_yellow[2] - dark_yellow[2]) * pulse)
+        
+        # Aqui é pra dar uma leve pulsada na espessura da linha
+        base_thickness = 3
+        pulse_thickness = int(base_thickness + pulse * 1.5)  # 3-4.5 pixels
+        
+        world_x = tile_x * TILE_SIZE
+        world_y = tile_y * TILE_SIZE
+        world_width = width * TILE_SIZE
+        world_height = height * TILE_SIZE
+        
+        screen_x, screen_y = camera.apply(world_x, world_y)
+        screen_width = int(world_width * camera.zoom)
+        screen_height = int(world_height * camera.zoom)
+        
+        # Desenha o contorno principal pulsante
+        pygame.draw.rect(
+            surface,
+            (r, g, b),
+            (screen_x, screen_y, screen_width, screen_height),
+            pulse_thickness
+        )
+        
+        # Adiciona um contorno interno mais fino pra destacar (aqui eu fiz por preferencia, mas dá pra tirar dps)
+        if pulse > 0.7:  # Só desenha quando tiver mais brilhante
+            inner_thickness = 1
+            inner_offset = pulse_thickness + 2
+            pygame.draw.rect(
+                surface,
+                (255, 255, 255),  # Branco
+                (screen_x + inner_offset, screen_y + inner_offset, 
+                screen_width - 2*inner_offset, screen_height - 2*inner_offset),
+                inner_thickness
+            )
     

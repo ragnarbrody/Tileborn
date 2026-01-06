@@ -24,7 +24,7 @@ class BuildingInstance:
         self.production_rate = {}  # Recursos produzidos por dia
         self.consumption_rate = {} # Recursos consumidos por dia
         
-        # Inicializar atributos baseados no tipo
+        # Inicializa os atributos baseados no tipo
         self._initialize_attributes()
 
     def _initialize_attributes(self):
@@ -32,7 +32,7 @@ class BuildingInstance:
         building_data = get_building_data().get(self.type, {})
         
         if self.type == BuildingType.HOUSE:
-            self.max_inhabitants = 4  # 4 pessoas por casa
+            self.max_inhabitants = 2  # pessoas por casa
             self.max_workers = 0
             self.base_production_per_worker = {}
             
@@ -43,8 +43,8 @@ class BuildingInstance:
             
         elif self.type == BuildingType.TOWNHALL:
             self.max_inhabitants = 10  # A prefeitura pode abrigar alguns habitantes
-            self.max_workers = 2  # Administradores da cidade
-            self.base_production_per_worker = {}  # Prefeitura não produz recursos
+            self.max_workers = 2  # Administradores da cidade (vão atrair imigrantes depois, talvez)
+            self.base_production_per_worker = {}  # Prefeitura não produz nadica (ainda)
             
         elif self.type == BuildingType.DIRT_ROAD:
             self.max_inhabitants = 0
@@ -60,7 +60,7 @@ class BuildingInstance:
         
         for resource, amount_per_worker in self.base_production_per_worker.items():
             if self.workers:
-                # Produção = base por trabalhador × número de trabalhadores × modificador
+                # Produção = base por trabalhador × numero de trabalhadores × modificador
                 total_amount = amount_per_worker * len(self.workers) * self.production_modifier
                 daily_production[resource] = int(total_amount)
         

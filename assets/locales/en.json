@@ -56,7 +56,14 @@
         "with_housing": "With housing",
         "without_housing": "Without housing",
         "camera_movement": "Camera movement",
-        "select_language": "Select Language"
+        "select_language": "Select Language",
+        "resident": "Resident",
+        "residents": "Residents",
+        "empty_slot": "Empty",
+        "building_info": "Building Info",
+        "position": "Position",
+        "inhabitants": "Inhabitants",
+        "workers": "Workers"
     },
     "languages": {
         "en": "English",

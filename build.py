@@ -63,13 +63,13 @@ def assemble_release():
         release_dir / f"{LAUNCHER_NAME}.exe"
     )
 
-    # Copiar assets
+    # Copia assets
     assets_src = ROOT / "assets"
     assets_dst = release_dir / "assets"
 
     shutil.copytree(assets_src, assets_dst, dirs_exist_ok=True)
     
-    # Verificar se os arquivos de tradução foram copiados
+    # Verifica se os arquivos de tradução foram copiados
     print("\n🔍 Verificando arquivos de tradução...")
     locales_dir = assets_dst / "locales"
     if locales_dir.exists():

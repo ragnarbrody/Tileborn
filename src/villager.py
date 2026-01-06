@@ -51,7 +51,7 @@ class Villager:
         self.facing_right = True
         
     def _generate_name(self):
-        """Gera um nome aleatório para o aldeão"""
+        """Gera um nome aleatório para o aldeão""" # Tlvz eu use um banco local depois
         first_names = ["John", "Maria", "Carlos", "Anna", "Peter", "Sophia", 
                       "Luis", "Emma", "Thomas", "Isabella", "James", "Olivia"]
         last_names = ["Smith", "Johnson", "Brown", "Davis", "Miller", "Wilson",
@@ -60,15 +60,15 @@ class Villager:
         return f"{random.choice(first_names)} {random.choice(last_names)}"
     
     def assign_to_workplace(self, workplace):
-        """Atribui este aldeão a um local de trabalho"""
+        """Atribui essee aldeão a um local de trabalho"""
         if not workplace:
             return False
         
         if self.workplace:
-            # Remover do trabalho atual
+            # Remove do trabalho atual
             self.workplace.remove_worker(self)
         
-        # Adicionar ao novo trabalho
+        # Adiciona ao novo trabalho
         success = workplace.add_worker(self)
         
         if success:
@@ -82,7 +82,7 @@ class Villager:
         """Atualiza o estado do aldeão"""
         self.animation_timer += dt
         
-        # Atualizar estado baseado no que está fazendo
+        # Atualiza o estado baseado no que tá fazendo
         if self.state == VillagerState.IDLE:
             self._update_idle(dt, world)
         elif self.state == VillagerState.WALKING:
@@ -103,22 +103,22 @@ class Villager:
     def _start_wandering(self, world):
         """Inicia um movimento de vagoar"""
         if self.home_building:
-            # Vaguer perto de casa
+            # Vagar perto de casa
             center_x = self.home_building.x + self.home_building.size[0] // 2
             center_y = self.home_building.y + self.home_building.size[1] // 2
         else:
-            # Vaguer perto da posição atual
+            # Vagr perto da posição atual
             center_x = self.x
             center_y = self.y
         
-        # Escolher um destino aleatório dentro do raio
+        # Escolhe um destino aleatório dentro do raio
         angle = random.random() * 2 * math.pi
         distance = random.randint(3, self.wander_radius)
         
         target_x = int(center_x + math.cos(angle) * distance)
         target_y = int(center_y + math.sin(angle) * distance)
         
-        # Verificar se o destino é válido
+        # Verifica se o destino é válido
         if (0 <= target_x < world.width and 
             0 <= target_y < world.height and
             world.grid[target_y][target_x] != "water" and
@@ -134,7 +134,7 @@ class Villager:
         self.path = []
         
         # Implementação básica de pathfinding - em linha reta
-        # Futuramente pode ser substituída por A*
+        # Futuramente eu vou substituir por uma pathfinding mais robusto
         
         current_x, current_y = self.x, self.y
         target_x, target_y = self.target_x, self.target_y
@@ -153,7 +153,7 @@ class Villager:
                 next_x = int(current_x + step_x * i)
                 next_y = int(current_y + step_y * i)
                 
-                # Verificar se o tile é acessível
+                # Verifica se o tile é acessível
                 if (0 <= next_x < world.width and 
                     0 <= next_y < world.height and
                     world.grid[next_y][next_x] != "water" and
@@ -172,12 +172,12 @@ class Villager:
             self.target_y = None
             return
         
-        # Mover para o próximo tile no caminho
+        # Move para o próximo tile no caminho
         next_tile = self.path[0]
         target_world_x = next_tile[0] * TILE_SIZE + TILE_SIZE // 2
         target_world_y = next_tile[1] * TILE_SIZE + TILE_SIZE // 2
         
-        # Calcular direção
+        # Calcula a direção
         dx = target_world_x - self.world_x
         dy = target_world_y - self.world_y
         distance = math.sqrt(dx*dx + dy*dy)
@@ -190,7 +190,7 @@ class Villager:
                 self.target_x = None
                 self.target_y = None
         else:
-            # Mover na direção
+            # Move na direção
             speed_px = self.speed * TILE_SIZE * dt
             move_x = (dx / distance) * speed_px if distance > 0 else 0
             move_y = (dy / distance) * speed_px if distance > 0 else 0
@@ -198,11 +198,11 @@ class Villager:
             self.world_x += move_x
             self.world_y += move_y
             
-            # Atualizar posição em tiles
+            # Atualiza a posição em tiles
             self.x = int(self.world_x // TILE_SIZE)
             self.y = int(self.world_y // TILE_SIZE)
             
-            # Atualizar direção do sprite
+            # Atualiza direção do sprite
             if abs(dx) > 0:
                 self.facing_right = dx > 0
     
@@ -240,7 +240,7 @@ class Villager:
     
     def _update_working(self, dt, world):
         """Lógica para quando está trabalhando"""
-        # Trabalhar por um tempo
+        # Trabalha por um tempo
         if random.random() < 0.005 * dt * 60:  # 0.5% chance por frame de parar
             self.state = VillagerState.GOING_HOME
     
@@ -248,8 +248,8 @@ class Villager:
         """Desenha o aldeão na tela"""
         screen_x, screen_y = camera.apply(self.world_x, self.world_y)
         
-        # Ajustar para o sprite de 2 tiles de altura (desenhar a partir do "pé")
-        screen_y -= TILE_SIZE  # Subir um tile para alinhar
+        # Ajusta para o sprite de 2 tiles de altura (desenha a partir do "pé")
+        screen_y -= TILE_SIZE  # Sobe um tile para alinhar
         
         sprite_to_draw = self.sprite
         if not self.facing_right:
@@ -257,7 +257,7 @@ class Villager:
         
         surface.blit(sprite_to_draw, (screen_x, screen_y))
         
-        # Desenhar nome (debug)
+        # Desenha o nome (debug, depois vai ficar no tooltip do aldeão)
         if self.name:
             font = pygame.font.SysFont(None, 12)
             name_text = font.render(self.name, True, (255, 255, 255))

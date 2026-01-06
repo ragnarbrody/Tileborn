@@ -12,7 +12,7 @@ class TimeManager:
         if not self.is_paused:
             self.current_time += dt
             
-            # Verificar se passou um dia
+            # Aqui ele verifica se passou um dia
             if self.current_time >= self.day_duration:
                 self.current_time = 0
                 self.current_day += 1

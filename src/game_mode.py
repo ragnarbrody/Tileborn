@@ -5,3 +5,4 @@ from enum import Enum
 class GameMode(Enum):
     NORMAL = 0
     BUILD = 1
+    SELECTED = 2

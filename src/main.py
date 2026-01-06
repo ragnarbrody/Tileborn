@@ -38,7 +38,7 @@ def main():
 
     game_mode = GameMode.NORMAL
 
-    # Variáveis para construção contínua
+    # Variáveis pra construção contínua
     building_continuous = False
     last_tile = None
     continuous_building_types = {BuildingType.DIRT_ROAD}
@@ -49,13 +49,13 @@ def main():
         dt = clock.tick(FPS) / 1000
         time_manager.update(dt)
 
-        # calcular tile atual primeiro
+        # calcula o tile atual primeiro
         tile_x, tile_y = mouse_to_tile(mouse_pos, camera)
 
         hud.update({}, dt, mouse_pos)
         hud.update_tooltip(mouse_pos, game_state)
 
-        # ATUALIZAR MUNDO (incluindo tempo e aldeões)
+        # atualiza o mundo (incluindo tempo e aldeões)
         world.update(dt, game_state)
         
         for event in pygame.event.get():
@@ -76,11 +76,25 @@ def main():
 
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_b:
-                    hud.toggle_build_menu()
-                    game_mode = (
-                        GameMode.BUILD if hud.is_build_mode()
-                        else GameMode.NORMAL
-                    )
+                    # Só permite alternar modo de construção se não houver popup aberto
+                    if not hud.selected_building_popup_open:
+                        hud.toggle_build_menu()
+                        game_mode = (
+                            GameMode.BUILD if hud.is_build_mode()
+                            else GameMode.NORMAL
+                        )
+
+                # ESC fecha popups
+                if event.key == pygame.K_ESCAPE:
+                    if hud.selected_building_popup_open:
+                        hud.close_building_popup()
+                        game_mode = GameMode.NORMAL
+                    elif hud.options_popup_open:
+                        hud.options_popup_open = False
+                        hud.selecting_language = False
+                    elif hud.is_build_menu_open():
+                        hud.toggle_build_menu()
+                        game_mode = GameMode.NORMAL
 
             # sistema de zoom (desativado)
             #elif event.type == pygame.MOUSEWHEEL:
@@ -88,18 +102,40 @@ def main():
                     #camera.zoom_at(mouse_pos[0], mouse_pos[1], event.y)
 
             elif event.type == pygame.MOUSEBUTTONDOWN:
-                    # clique direito cancela construção / fecha menu
+                    # clique direito cancela construção / fecha menu / fecha popup
                     if event.button == 3:
                         building_continuous = False
                         last_tile = None
+
+                        # Fecha popup de construção se estiver aberto
+                        if hud.selected_building_popup_open:
+                            hud.close_building_popup()
+                            game_mode = GameMode.NORMAL
+                         
+                        # Cancela modo de construção
                         if game_mode == GameMode.BUILD:
                             hud.toggle_build_menu()
                             game_mode = GameMode.NORMAL
+
                         continue
 
                     # clique esquerdo
                     elif event.button == 1:
-                        # SEMPRE processa popup de opções primeiro se estiver aberto
+                        # PRIMEIRO: Processa popup de construção se tiver aberto
+                        if hud.selected_building_popup_open:
+                            result = hud.handle_building_popup_click(mouse_pos)
+                            if result == "building_popup_closed":
+                                game_mode = GameMode.NORMAL
+                                continue
+                            elif result and result.startswith("add_inhabitant_slot_"):
+                                # TODO: Implementar lógica para adicionar morador
+                                print(f"Adicionar morador no slot {result.split('_')[-1]}")
+                                continue
+                            elif result == "building_popup_clicked_inside":
+                                # Clicou dentro do popup, não faz mais nada
+                                continue
+
+                        # SEGUNDO: Processa popup de opções se estiver abertoo
                         if hud.options_popup_open:
                             result = hud.handle_click(mouse_pos)
                             # Se o clique fechou o popup ou foi dentro dele, não passa para o mundo
@@ -116,12 +152,12 @@ def main():
 
                                 continue
 
-                        # Fecha menu hambúrguer ao clicar fora
+                        # TERCEIRO: Fecha menu hambúrguer ao clicar fora
                         if hud.menu_open and not hud.is_mouse_over_ui(mouse_pos):
                             hud.close_top_menu()
                             continue
 
-                        # CLIQUE NO HUD (sempre)
+                        # QUARTO: Clique no hud (sempre)
                         if hud.is_mouse_over_ui(mouse_pos):
                             result = hud.handle_click(mouse_pos)
                             if result == "build_menu_changed":
@@ -130,9 +166,26 @@ def main():
                                     else GameMode.NORMAL
                                 )
                             continue  # não deixa passar pro mundo
-
+                        
+                        # QUINTO: CLIQUE NO MUNDO
+                        if game_mode == GameMode.NORMAL or game_mode == GameMode.SELECTED:
+                            # Tenta selecionar uma construção
+                            entity = world.get_entity_at_tile(tile_x, tile_y)
+                            if entity and hasattr(entity, 'type'):
+                                # É uma construção - fecha popup atual se existir e abre novo
+                                if hud.selected_building_popup_open:
+                                    hud.close_building_popup()
+                                
+                                # Abre o popup da nova construção
+                                hud.open_building_popup(entity, entity.type, game_state)
+                                game_mode = GameMode.SELECTED
+                                continue
+                        
                         # CLIQUE NO MUNDO
-                        if game_mode == GameMode.BUILD and hud.selected_building:
+                        if (game_mode == GameMode.BUILD and 
+                            hud.selected_building and 
+                            not hud.selected_building_popup_open):
+
                             # se é construção contínua
                             if hud.selected_building in continuous_building_types:
                                 building_continuous = True
@@ -181,11 +234,12 @@ def main():
 
         world.draw(display.surface, camera)
         
-        if (
-            game_mode == GameMode.BUILD
+        # Desenha preview de construção (apenas se não existir nenhum popup aberto)
+        if (game_mode == GameMode.BUILD
             and hud.selected_building
             and not hud.is_mouse_over_ui(mouse_pos)
-        ):
+            and hud.can_build()):
+            
             world.draw_build_preview(
                 display.surface,
                 camera,
@@ -197,8 +251,19 @@ def main():
 
         world.draw_highlight(display.surface, camera, tile_x, tile_y)
 
+        # Se tiver um prédio selecionado no popup, desenha o highlight
+        if hud.selected_building_popup_open and hud.selected_building_data:
+            tile_x, tile_y = hud.selected_building_data["position"]
+            size_x, size_y = hud.selected_building_data.get("size", (1, 1))
+            world.draw_selected_building_highlight(display.surface, camera, tile_x, tile_y, size_x, size_y)
+
         hud.draw_top_bar(display.surface, game_state, time_manager)
         hud.draw(display.surface, game_state) 
+
+        # Desenha o popup da construção selecionada
+        if hud.selected_building_popup_open:
+            hud.draw_selected_building_popup(display.surface)
+
         hud.draw_tooltip(display.surface, mouse_pos)
 
         display.end_draw()

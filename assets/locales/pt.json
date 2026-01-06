@@ -57,7 +57,14 @@
         "with_housing": "Com casa",
         "without_housing": "Sem casa",
         "camera_movement": "Movimento da câmera",
-        "select_language": "Selecione o Idioma"
+        "select_language": "Selecione o Idioma",
+        "resident": "Morador",
+        "residents": "Moradores",
+        "empty_slot": "Vazio",
+        "building_info": "Informações da Construção",
+        "position": "Posição",
+        "inhabitants": "Habitantes",
+        "workers": "Trabalhadores"
     },
     "languages": {
         "en": "Inglês",

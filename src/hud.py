@@ -82,13 +82,13 @@ class HUD:
 
         # Sistema de abas do menu de opções
         self.options_tab_keys = ["general", "display", "audio", "controls"]
-        self.current_options_tab_key = "general"  # Armazena a chave
+        self.current_options_tab_key = "general"  # guarda só a chave
 
         # Opções de idioma disponíveis
         self.available_languages = self.i18n.get_available_languages()
         self.selected_language = self.i18n.current_lang
         
-        # Dados para cada aba (agora dinâmicos)
+        # Dados para cada aba
         self.tab_content = {
             self.i18n.get("options.general", "General"): [
                 self.i18n.get("options.language", "Language"),
@@ -113,9 +113,19 @@ class HUD:
         self.tab_button_height = 30
         self.tab_button_padding = 10
 
-        # Controla se estamos selecionando idioma
+        # Controla se tá selecionando idioma
         self.selecting_language = False
         self.language_buttons = []
+
+        # Popup de construção selecionada
+        self.selected_building_popup_open = False
+        self.selected_building_info = None
+        self.selected_building_popup_width = 400
+        self.selected_building_popup_height = 300
+        self.selected_building_popup_alpha = 220
+
+        # Tipos de construções que não devem ter popup
+        self.no_popup_buildings = ["dirt road", "street", "path", "plaza"] # os outros ai são só exemplo, dps eu troco
 
         self.rect = pygame.Rect(0, 0, 1, self.height)
 
@@ -231,7 +241,7 @@ class HUD:
 
         self.pulse_time += dt
 
-        # ANIMAÇÃO DO MENU HAMBURGUER
+        # animação do menu hamburguer
         if self.top_menu_y < self.top_menu_target_y:
             self.top_menu_y += self.top_menu_speed * dt
             if self.top_menu_y > self.top_menu_target_y:
@@ -321,7 +331,7 @@ class HUD:
 
             # Se estiver selecionando idioma, processa primeiro
             if self.selecting_language:
-                # CALCULA DINAMICAMENTE baseado no número de idiomas
+                # CALCULA DINAMICAMENTE baseado no número de idiomas (deu um trabaaalho)
                 button_height = 30
                 button_spacing = 5
                 padding_top = 40
@@ -364,7 +374,7 @@ class HUD:
                 
                 return "language_selector_click"
             
-            # clicou fora → fecha
+            # clicou fora , ai fecha
             if not popup_rect.collidepoint(mouse_pos):
                 self.options_popup_open = False
                 self.selecting_language = False
@@ -375,10 +385,10 @@ class HUD:
             popup_width, popup_height = popup_rect.size
             tabs_height = 40
 
-            # Obter textos das abas para calcular posições
+            # Pega os textos das abas para calcular posições
             tab_texts = self.get_options_tabs_texts()
             
-            # Calcular posição e tamanho das abas
+            # Calcula a posição e tamanho das abas
             if tab_texts:
                 tab_width = (popup_width - (len(tab_texts) + 1) * self.tab_button_padding) // len(tab_texts)
             else:
@@ -395,9 +405,9 @@ class HUD:
                     self.selecting_language = False
                     return f"options_tab_{self.current_options_tab_key}"
             
-            # Verifica clique no botão de idioma (se estiver na aba General)
+            # Verifica o clique no botão de idioma (se tiver na aba general)
             if self.current_options_tab_key == "general" and hasattr(self, 'language_button_rect'):
-                # Converter coordenadas relativas do popup para coordenadas da tela
+                # Converte as coordenadas relativas do popup pra coordenadas da tela
                 lang_button_rect_screen = pygame.Rect(
                     popup_x + self.language_button_rect.x,
                     popup_y + self.language_button_rect.y,
@@ -409,14 +419,14 @@ class HUD:
                     self.selecting_language = True
                     return "open_language_selector"
             
-            # clicou dentro do popup (mas não em uma aba) → bloqueia clique pro jogo
+            # clicou dentro do popup (mas não em uma aba), ai bloqueia clique pro jogo
             return "options_popup_click"
 
         if self.menu_button_rect.collidepoint(mouse_pos):
             self.menu_open = not self.menu_open
 
             if self.menu_open:
-                self.top_menu_target_y = self.top_bar_height
+                self.top_menu_target_y = 0
             else:
                 self.top_menu_target_y = -self.top_menu_height
 
@@ -438,7 +448,7 @@ class HUD:
         if self.menu_open:
             width = self.top_menu_width
             x = self.menu_button_rect.right - width
-            y = int(self.top_menu_y)
+            y = self.top_bar_row_1_height + int(self.top_menu_y)
 
             for i, option in enumerate(self.top_menu_options):
                 option_rect = pygame.Rect(
@@ -461,7 +471,7 @@ class HUD:
 
     def open_options(self):
         self.options_popup_open = True
-        self.current_options_tab_key = "general" # Reseta para aba padrão
+        self.current_options_tab_key = "general" # Reseta pra aba padrão
     
     def close_top_menu(self):
         self.menu_open = False
@@ -471,8 +481,8 @@ class HUD:
         if not mouse_pos:
             return False
         
-        # Se popup de opções estiver aberto, considera TODO o clique como UI
-        if self.options_popup_open:
+        # Se popup de opções estiver aberto, considera qlqr clique como UI
+        if self.options_popup_open or self.selected_building_popup_open:
             return True
 
         # Barra superior
@@ -507,6 +517,10 @@ class HUD:
                 return True
 
         return False
+    
+    def can_build(self):
+        """Verifica se é possível construir (não tem popups abertos)"""
+        return not (self.options_popup_open or self.selected_building_popup_open)
     
     def update_language_texts(self):
         """Atualiza todos os textos quando o idioma muda"""
@@ -544,7 +558,7 @@ class HUD:
         # Atualiza altura do menu baseado no novo número de opções
         self.top_menu_height = len(self.top_menu_options) * self.top_menu_option_height
         
-        # Se o menu estava aberto, ajusta a posição alvo
+        # Se o menu tava aberto, ajusta a posição alvo
         if self.menu_open:
             self.top_menu_target_y = self.top_bar_height
         else:
@@ -581,25 +595,25 @@ class HUD:
         tabs_height = 40
         tabs_area = pygame.Rect(0, 0, popup_width, tabs_height)
         
-        # Desenhar fundo das abas
+        # Desenha o fundo das abas
         pygame.draw.rect(popup_surf, (60, 60, 60, 200), tabs_area)
         pygame.draw.rect(popup_surf, (80, 80, 80), tabs_area, 1)
         
-        # Calcular largura das abas
+        # Calcula a largura das abas
         tab_texts = self.get_options_tabs_texts()  # Obtem textos traduzidos primeiro
-        if tab_texts:  # Evita divisão por zero
+        if tab_texts:  # evita a divisão por zero
             tab_width = (popup_width - (len(tab_texts) + 1) * self.tab_button_padding) // len(tab_texts)
         else:
             tab_width = 100
 
         tab_texts = self.get_options_tabs_texts()     
         
-        # Desenhar abas
+        # desenha as abas
         for i, tab_text  in enumerate(tab_texts):
             x = self.tab_button_padding + i * (tab_width + self.tab_button_padding)
             tab_rect = pygame.Rect(x, 5, tab_width, tabs_height - 10)
 
-            # Usar a chave para verificar se é a aba ativa
+            # Usa a chave pra verificar se é a aba ativa
             tab_key = self.options_tab_keys[i]
             
             # Cor da aba ativa/inativa
@@ -620,7 +634,7 @@ class HUD:
             text_rect = tab_text.get_rect(center=tab_rect.center)
             popup_surf.blit(tab_text, text_rect)
         
-        # Área de conteúdo (abaixo das abas)
+        # Área de conteúdo (embaixo das abas)
         content_area = pygame.Rect(
             0, 
             tabs_height, 
@@ -628,11 +642,11 @@ class HUD:
             popup_height - tabs_height
         )
         
-        # Desenhar fundo da área de conteúdo
+        # Desenha o fundo da área de conteúdo
         pygame.draw.rect(popup_surf, (40, 40, 40, 180), content_area)
         pygame.draw.rect(popup_surf, (70, 70, 70), content_area, 1)
         
-        # Desenhar conteúdo da aba atual
+        # Desenha o conteúdo da aba atual
         content_padding = 20
         current_y = tabs_height + content_padding
         
@@ -657,20 +671,20 @@ class HUD:
         
         # Conteúdo específico da aba
         if self.current_options_tab_key == "general":
-            # Desenhar opção de idioma especial
+            # Desenha a opção de idioma especial
             lang_text = option_font.render(self.i18n.get("options.language", "Language") + ":", True, (220, 220, 220))
             popup_surf.blit(lang_text, (content_padding, current_y))
             
             # Botão para selecionar idioma
             lang_button_width = 100
-            self.language_button_rect = pygame.Rect(  # Salva para clique
+            self.language_button_rect = pygame.Rect(  # Salva pro clique
                 content_padding + 150,
                 current_y - 5,
                 lang_button_width,
                 25
             )
             
-            # Exibir idioma atual (usando i18n)
+            # Exibe o idioma atual (usando i18n)
             try:
                 language_names = self.i18n.get_all_language_names()
                 lang_name = language_names.get(self.selected_language, self.selected_language)
@@ -680,7 +694,7 @@ class HUD:
                 
             lang_button_text = option_font.render(lang_name, True, (255, 255, 255))
             
-            # Desenhar botão
+            # Desenha o botão
             pygame.draw.rect(popup_surf, (80, 80, 80), self.language_button_rect, border_radius=4)
             pygame.draw.rect(popup_surf, (120, 120, 120), self.language_button_rect, 1, border_radius=4)
             text_rect = lang_button_text.get_rect(center=self.language_button_rect.center)
@@ -688,7 +702,7 @@ class HUD:
             
             current_y += 35
             
-            # Outras opções da aba General
+            # Outra opções da aba General
             tab_content = self.get_tab_content("general")
             for option_text in tab_content:
                 if option_text != self.i18n.get("options.language", "Language"):
@@ -706,7 +720,7 @@ class HUD:
                     popup_surf.blit(option_surface, (content_padding + 25, current_y))
                     current_y += option_surface.get_height() + 12
         else:
-            # Para outras abas, desenhar normalmente
+            # Pra outras abas, desenha normalmente
             tab_content = self.get_tab_content(self.current_options_tab_key)
             for option_text in tab_content:
                 # Checkbox/indicator (círculo simples)
@@ -735,7 +749,7 @@ class HUD:
             )
         )
 
-        # Desenhar seletor de idioma se estiver ativo
+        # Desenha o seletor de idioma se tiver ativo
         if self.selecting_language:
             self.draw_language_selector(popup_surf, popup_rect)
         
@@ -794,7 +808,7 @@ class HUD:
             }
 
         for i, lang_code in enumerate(self.available_languages):
-            # Obtém o nome do idioma
+            # pega o nome do idioma
             lang_name = language_names.get(lang_code, lang_code)
 
             button_rect = pygame.Rect(
@@ -806,10 +820,10 @@ class HUD:
             
             # Cor do botão
             if lang_code == self.selected_language:
-                color = (70, 130, 180)  # Azul para idioma selecionado
+                color = (70, 130, 180)  # Azul pra idioma selecionado
                 text_color = (255, 255, 255)
             else:
-                color = (60, 60, 70)    # Cinza para outros
+                color = (60, 60, 70)    # Cinza pros outros
                 text_color = (200, 200, 200)
             
             # Fundo do botão
@@ -845,7 +859,7 @@ class HUD:
         for res, amount in data["cost"].items():
             current = game_state.resources.get(res, 0)
 
-            # Obtem nome traduzido do recurso
+            # Pega o nome traduzido do recurso
             res_name = resource_data.get(res, {}).get("name", res.capitalize())
 
             if current >= amount:
@@ -904,7 +918,7 @@ class HUD:
         row1_y = 0
         y = (self.top_bar_row_1_height - self.resource_icon_size) // 2 - 2
 
-        self.resource_rects = {}  # salvar retângulos para tooltips
+        self.resource_rects = {}  # salva os retângulos pras tooltips
 
         resources_to_draw = [
             ResourceType.WOOD,
@@ -930,7 +944,7 @@ class HUD:
                  
             surface.blit(amount_text, (x + self.resource_icon_size + 4, y + (self.resource_icon_size - amount_text.get_height()) // 2))
 
-            # salvar retângulo do recurso
+            # salva o retângulo do recurso
             rect = pygame.Rect(x, y, self.resource_icon_size + 4 + amount_text.get_width(), self.resource_icon_size)
             self.resource_rects[res] = rect
 
@@ -944,12 +958,12 @@ class HUD:
 
         self.draw_hamburger_button(surface, self.menu_button_rect)
 
-        # MENU EXPANSÍVEL
-        if self.menu_open:
-            self.draw_top_menu(surface)
-
         # LINHA DO RELÓGIO
         self.draw_clock_bar(surface, time_manager)
+        
+        # MENU EXPANSIVEL
+        if self.menu_open:
+            self.draw_top_menu(surface)
 
     def draw_clock_bar(self, surface, time_manager):
         if not time_manager:
@@ -991,8 +1005,9 @@ class HUD:
         width = self.top_menu_width
         height = self.top_menu_height
 
+        # Usa só a altura da primeira linha (onde tá o botão)
         x = self.menu_button_rect.right - width
-        y = self.top_bar_height + int(self.top_menu_y)
+        y = self.top_bar_row_1_height + int(self.top_menu_y)  # ALTERADO
 
         # Fundo do menu
         bg = pygame.Surface((width, height), pygame.SRCALPHA)
@@ -1037,7 +1052,7 @@ class HUD:
         # Verifica se o mouse tá em cima de alguma opção
         width = self.top_menu_width
         x = self.menu_button_rect.right - width
-        y = int(self.top_menu_y)
+        y = self.top_bar_row_1_height + int(self.top_menu_y)
         
         for i, option in enumerate(self.top_menu_options):
             option_rect = pygame.Rect(
@@ -1073,17 +1088,17 @@ class HUD:
             )
     
     def update_tooltip(self, mouse_pos, game_state):
-        # Não mostra tooltips se popup de opções estiver aberto
+        # Não mostra tooltips se popup de opções tiver aberto
         if self.options_popup_open:
             self.hover_tooltip = None
             return
 
         self.hover_tooltip = None
 
-        # check recurso na barra superior
+        # checa o recurso na barra superior
         for res, rect in getattr(self, "resource_rects", {}).items():
             if rect.collidepoint(mouse_pos):
-                # Obter dados atualizados de recursos
+                # Pega os dados atualizados de recursos
                 from resources import get_resource_data
                 resource_data = get_resource_data()
                 data = resource_data[res]
@@ -1123,7 +1138,7 @@ class HUD:
 
                 # Botões de construção
                 if button.action == "select_build":
-                    # Obter dados atualizados de construções
+                    # Obtem os dados atualizados de construções
                     from buildings import get_building_data
                     building_data = get_building_data()
                     data = building_data[button.data]
@@ -1131,7 +1146,7 @@ class HUD:
                     lines = [data["description"]]
 
                     for res, amount in data["cost"].items():
-                        # Obter nome do recurso traduzido
+                        # Pega o nome do recurso traduzido
                         from resources import get_resource_data
                         res_data = get_resource_data()
                         res_name = res_data.get(res, {}).get("name", res.capitalize())
@@ -1176,24 +1191,24 @@ class HUD:
         x, y = mouse_pos
         x += 12  # pequeno deslocamento horizontal do mouse
 
-        # Ajuste vertical automático
+        # Ajuste vertical automatico
         if y < self.top_bar_height + 10:
-            # mouse na barra superior → desenha para baixo
+            # mouse na barra superior, ai desenha para baixo
             y += 20
         else:
-            # mouse na barra inferior ou no mundo → desenha para cima
+            # mouse na barra inferior ou no mundo, ai desenha para cima
             y -= height + 12
 
-        # Verifica se o tooltip sai da tela à direita
+        # Verifica se o tooltip sai da tela na direita
         if x + width > surface.get_width():
             x = surface.get_width() - width - 10
 
-        # Criar fundo do tooltip
+        # Cria o fundo do tooltip
         bg = pygame.Surface((width, height), pygame.SRCALPHA)
         bg.fill((50, 50, 50, 190))
         surface.blit(bg, (x, y))
 
-        # Desenhar textos
+        # Desenha os textos
         draw_y = y + padding
         surface.blit(title_surf, (x + padding, draw_y))
         draw_y += title_surf.get_height() + line_spacing
@@ -1201,6 +1216,290 @@ class HUD:
         for line in line_surfs:
             surface.blit(line, (x + padding, draw_y))
             draw_y += line.get_height() + line_spacing
+
+    def open_building_popup(self, building_info, building_type, game_state):
+        """Abre o popup de construção selecionada"""
+
+        # Verifica se é uma rua/estrada (não deve ter popup)
+        if building_type in self.no_popup_buildings:
+            # não faz nada :D
+            return
+
+        self.selected_building_popup_open = True
+        self.selected_building_info = building_info
+        
+        # Obtém dados da construção
+        from buildings import get_building_data
+        building_data = get_building_data()
+        data = building_data.get(building_type, {})
+        
+        # Informações para o popup
+        self.selected_building_data = {
+            "name": data.get("name", "Unknown"),
+            "description": data.get("description", ""),
+            "type": building_type,
+            "position": (building_info.x, building_info.y) if building_info else (0, 0),
+            "size": data.get("size", (1, 1)),
+            "inhabitants": getattr(building_info, 'inhabitants', []),
+            "workers": getattr(building_info, 'workers', []),
+            "max_inhabitants": getattr(building_info, 'max_inhabitants', 0),
+            "max_workers": getattr(building_info, 'max_workers', 0)
+        }
+
+    def close_building_popup(self):
+        """Fecha o popup de construção selecionada"""
+        self.selected_building_popup_open = False
+        self.selected_building_info = None
+        self.selected_building_data = None
+        
+        # Remove a referência ao retângulo também
+        if hasattr(self, 'selected_building_popup_rect'):
+            delattr(self, 'selected_building_popup_rect')
+
+    def draw_selected_building_popup(self, surface):
+        """Desenha o popup da construção selecionada"""
+        if not self.selected_building_popup_open or not self.selected_building_data:
+            return
+        
+        screen_width, screen_height = surface.get_size()
+        
+        # Calcula posição centralizada
+        popup_x = (screen_width - self.selected_building_popup_width) // 2
+        popup_y = (screen_height - self.selected_building_popup_height) // 2
+        
+        popup_rect = pygame.Rect(
+            popup_x, popup_y,
+            self.selected_building_popup_width,
+            self.selected_building_popup_height
+        )
+        
+        # Fundo do popup
+        popup_surf = pygame.Surface(
+            (self.selected_building_popup_width, self.selected_building_popup_height),
+            pygame.SRCALPHA
+        )
+        popup_surf.fill((50, 50, 60, self.selected_building_popup_alpha))
+        
+        # Borda
+        pygame.draw.rect(
+            popup_surf,
+            (100, 100, 120),
+            popup_surf.get_rect(),
+            2,
+            border_radius=8
+        )
+        
+        # Título
+        title_font = pygame.font.SysFont(None, 28)
+        title_text = title_font.render(
+            self.selected_building_data["name"],
+            True,
+            (255, 255, 255)
+        )
+        popup_surf.blit(title_text, (20, 20))
+        
+        # Linha divisória
+        pygame.draw.line(
+            popup_surf,
+            (100, 100, 120),
+            (20, 55),
+            (self.selected_building_popup_width - 20, 55),
+            2
+        )
+        
+        # Descrição
+        desc_font = pygame.font.SysFont(None, 18)
+        description = self.selected_building_data["description"]
+        if description:
+            # Quebra a descrição em múltiplas linhas se necessário
+            words = description.split()
+            lines = []
+            current_line = []
+            
+            for word in words:
+                current_line.append(word)
+                test_line = ' '.join(current_line)
+                if desc_font.size(test_line)[0] > self.selected_building_popup_width - 40:
+                    current_line.pop()
+                    lines.append(' '.join(current_line))
+                    current_line = [word]
+            
+            if current_line:
+                lines.append(' '.join(current_line))
+            
+            # Desenha cada linha
+            y_pos = 70
+            for line in lines:
+                line_surf = desc_font.render(line, True, (220, 220, 220))
+                popup_surf.blit(line_surf, (20, y_pos))
+                y_pos += line_surf.get_height() + 5
+        
+        # Posição
+        pos_font = pygame.font.SysFont(None, 16)
+        pos_text = pos_font.render(
+            f"{self.i18n.get("ui.position", "Position")}: ({self.selected_building_data['position'][0]}, {self.selected_building_data['position'][1]})",
+            True,
+            (180, 180, 200)
+        )
+        popup_surf.blit(pos_text, (20, y_pos + 10))
+        
+        # Se for uma casa, mostra slots de moradores
+        if self.selected_building_data["type"] == "house":
+            y_pos += 40
+            
+            # Título dos moradores
+            residents_title = desc_font.render(
+                self.i18n.get("ui.residents", "Residents"),
+                True,
+                (220, 220, 220)
+            )
+            popup_surf.blit(residents_title, (20, y_pos))
+            y_pos += 30
+            
+            # Slots de moradores
+            max_inhabitants = self.selected_building_data["max_inhabitants"]
+            current_inhabitants = len(self.selected_building_data["inhabitants"])
+            
+            for i in range(max_inhabitants):
+                slot_y = y_pos + (i * 35)
+                
+                # Fundo do slot
+                slot_rect = pygame.Rect(20, slot_y, 250, 30)
+                pygame.draw.rect(
+                    popup_surf,
+                    (70, 70, 80),
+                    slot_rect,
+                    border_radius=4
+                )
+                pygame.draw.rect(
+                    popup_surf,
+                    (100, 100, 120),
+                    slot_rect,
+                    1,
+                    border_radius=4
+                )
+                
+                # Texto do slot
+                if i < current_inhabitants:
+                    # Slot ocupado
+                    villager = self.selected_building_data["inhabitants"][i]
+                    slot_text = desc_font.render(
+                        f"{self.i18n.get("ui.resident", "Resident")}: {getattr(villager, 'name', 'Unknown')}",
+                        True,
+                        (150, 220, 150)
+                    )
+                else:
+                    # Slot vazio
+                    slot_text = desc_font.render(
+                        self.i18n.get("ui.empty_slot", "Empty"),
+                        True,
+                        (180, 180, 180)
+                    )
+                
+                popup_surf.blit(slot_text, (30, slot_y + 8))
+                
+                # Botão de adicionar (apenas para slots vazios)
+                if i >= current_inhabitants:
+                    add_button_rect = pygame.Rect(280, slot_y + 5, 20, 20)
+                    
+                    # Desenha botão de +
+                    pygame.draw.rect(
+                        popup_surf,
+                        (80, 130, 80),
+                        add_button_rect,
+                        border_radius=10
+                    )
+                    pygame.draw.rect(
+                        popup_surf,
+                        (120, 180, 120),
+                        add_button_rect,
+                        1,
+                        border_radius=10
+                    )
+                    
+                    # Sinal de +
+                    plus_font = pygame.font.SysFont(None, 18)
+                    plus_text = plus_font.render("+", True, (255, 255, 255))
+                    plus_rect = plus_text.get_rect(center=add_button_rect.center)
+                    popup_surf.blit(plus_text, plus_rect)
+        
+        # Botão de fechar
+        close_button_rect = pygame.Rect(
+            self.selected_building_popup_width - 40, 10, 30, 30
+        )
+        
+        pygame.draw.rect(
+            popup_surf,
+            (120, 80, 80),
+            close_button_rect,
+            border_radius=15
+        )
+        pygame.draw.rect(
+            popup_surf,
+            (180, 120, 120),
+            close_button_rect,
+            2,
+            border_radius=15
+        )
+        
+        # X para fechar
+        close_font = pygame.font.SysFont(None, 20)
+        close_text = close_font.render("×", True, (255, 255, 255))
+        close_rect = close_text.get_rect(center=close_button_rect.center)
+        popup_surf.blit(close_text, close_rect)
+        
+        # Adiciona ao surface principal
+        surface.blit(popup_surf, popup_rect.topleft)
+        
+        # Salva a posição do popup para cliques
+        self.selected_building_popup_rect = popup_rect
+
+    def handle_building_popup_click(self, mouse_pos):
+        """Lida com cliques no popup de construção"""
+        if not self.selected_building_popup_open:
+            return None
+        
+        # Verifica se clicou fora do popup
+        if not hasattr(self, 'selected_building_popup_rect'):
+            return None
+        
+        # Verifica se clicou dentro do popup
+        if not self.selected_building_popup_rect.collidepoint(mouse_pos):
+            # Clicou fora do popup - fecha ele
+            self.close_building_popup()
+            return "building_popup_closed"
+        
+        # Verifica se clicou no botão de fechar
+        if hasattr(self, 'selected_building_popup_rect'):
+            # Botão de fechar (canto superior direito)
+            close_button_rect = pygame.Rect(
+                self.selected_building_popup_rect.x + self.selected_building_popup_width - 40,
+                self.selected_building_popup_rect.y + 10,
+                30, 30
+            )
+            
+            if close_button_rect.collidepoint(mouse_pos):
+                self.close_building_popup()
+                return "building_popup_closed"
+        
+        # Verifica se clicou em algum botão de adicionar morador
+        if self.selected_building_data and self.selected_building_data["type"] == "house":
+            max_inhabitants = self.selected_building_data["max_inhabitants"]
+            current_inhabitants = len(self.selected_building_data["inhabitants"])
+            
+            for i in range(current_inhabitants, max_inhabitants):
+                slot_y = self.selected_building_popup_rect.y + 160 + (i * 35)
+                add_button_rect = pygame.Rect(
+                    self.selected_building_popup_rect.x + 280,
+                    slot_y + 5,
+                    20, 20
+                )
+                
+                if add_button_rect.collidepoint(mouse_pos):
+                    return f"add_inhabitant_slot_{i}"
+        
+        # Clicou dentro do popup, mas não em nenhum botão específico
+        return "building_popup_clicked_inside"
 
 class HUDButton:
     def __init__(self, rect, icon, action=None, data=None):

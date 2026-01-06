@@ -11,7 +11,7 @@ def reload_all_texts(hud_instance):
     importlib.reload(resources)
     importlib.reload(buildings)
     
-    # Obtém os dados atualizados das funções
+    # Pega os dados atualizados das funções
     from resources import get_resource_data
     from buildings import get_building_data
     
@@ -19,7 +19,7 @@ def reload_all_texts(hud_instance):
     resources.RESOURCE_DATA = get_resource_data()
     buildings.BUILDING_DATA = get_building_data()
     
-    # Importa as constantes atualizadas
+    # Importa as constantes atualizadas (meio redundante mas é o jeito kkkk)
     from resources import RESOURCE_DATA
     from buildings import BUILDING_DATA
     

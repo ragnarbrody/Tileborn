@@ -56,7 +56,7 @@ class Camera:
         if self.zoom == old_zoom:
             return
 
-        # Ajustar câmera para manter o ponto do mouse fixo
+        # Ajusta a camera pra manter o ponto do mouse fixo
         mx, my = mouse_x, mouse_y
         wx_before, wy_before = self.screen_to_world(mx, my)
 
