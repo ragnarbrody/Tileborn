@@ -1222,7 +1222,7 @@ class HUD:
 
         # Verifica se é uma rua/estrada (não deve ter popup)
         if building_type in self.no_popup_buildings:
-            # não faz nada :D
+            # não faz nada :D (tava pensando em deixar pelo menos o highlight)
             return
 
         self.selected_building_popup_open = True
@@ -1311,7 +1311,7 @@ class HUD:
         desc_font = pygame.font.SysFont(None, 18)
         description = self.selected_building_data["description"]
         if description:
-            # Quebra a descrição em múltiplas linhas se necessário
+            # Quebra a descrição em várias linhas se precisar (deu um trabalhasso)
             words = description.split()
             lines = []
             current_line = []
@@ -1356,7 +1356,7 @@ class HUD:
             popup_surf.blit(residents_title, (20, y_pos))
             y_pos += 30
             
-            # Slots de moradores
+            # Slots de moradores (eles são placeholders por enquanto)
             max_inhabitants = self.selected_building_data["max_inhabitants"]
             current_inhabitants = len(self.selected_building_data["inhabitants"])
             
@@ -1398,7 +1398,7 @@ class HUD:
                 
                 popup_surf.blit(slot_text, (30, slot_y + 8))
                 
-                # Botão de adicionar (apenas para slots vazios)
+                # Botão de adicionar (apenas pra slots vazios)
                 if i >= current_inhabitants:
                     add_button_rect = pygame.Rect(280, slot_y + 5, 20, 20)
                     
@@ -1465,7 +1465,7 @@ class HUD:
         
         # Verifica se clicou dentro do popup
         if not self.selected_building_popup_rect.collidepoint(mouse_pos):
-            # Clicou fora do popup - fecha ele
+            # Clicou fora do popup, ai fecha ele
             self.close_building_popup()
             return "building_popup_closed"
         
