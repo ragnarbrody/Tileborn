@@ -20,7 +20,7 @@ If you want to explore or test the project:
 - You can run it directly using:
     main.py
 Or run:
-    python build.py
+    build.py
 
 which will generate an executable build.
 
@@ -34,14 +34,14 @@ This repository is public mainly for learning, feedback and sharing progress
 
 ## About the Project
 
-Personal, small-scale project
-Developed solo
-Written 100% in Python
-No game engine used
-Focused on learning, experimentation and long-term iteration
+Personal, small-scale project;
+Developed solo;
+Written 100% in Python;
+No game engine used;
+Focused on learning, experimentation and long-term iteration.
 
 Thanks for checking out Tileborn!
 
-## License
+## LICENSE
 
 This project is licensed under the MIT License.
