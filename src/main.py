@@ -249,6 +249,21 @@ def main():
                 game_state
             )
 
+        # Debug: mostra informações dos aldeões
+        if True:  # só mudar pra true pra ter um debug
+            font = pygame.font.SysFont(None, 14)
+            for i, villager in enumerate(world.villagers):
+                debug_text = f"{villager.full_name}: {villager.state.value}"
+                if villager.home_building:
+                    debug_text += f" 🏠"
+                if villager.workplace:
+                    debug_text += f" ⚒"
+                if villager.get_inventory_total() > 0:
+                    debug_text += f" 📦{villager.get_inventory_total()}"
+                
+                text_surface = font.render(debug_text, True, (255, 255, 255))
+                display.surface.blit(text_surface, (10, 90 + i * 20))
+
         world.draw_highlight(display.surface, camera, tile_x, tile_y)
 
         # Se tiver um prédio selecionado no popup, desenha o highlight
@@ -271,4 +286,4 @@ def main():
     pygame.quit()
 
 if __name__ == "__main__":
-    main() 
+    main()

@@ -1232,6 +1232,11 @@ class HUD:
         from buildings import get_building_data
         building_data = get_building_data()
         data = building_data.get(building_type, {})
+
+        # Busca aldeões desempregados
+        unemployed_villagers = []
+        if hasattr(building_info, 'world') and building_info.world:
+            unemployed_villagers = building_info.world.get_unemployed_villagers()
         
         # Informações para o popup
         self.selected_building_data = {
@@ -1243,18 +1248,30 @@ class HUD:
             "inhabitants": getattr(building_info, 'inhabitants', []),
             "workers": getattr(building_info, 'workers', []),
             "max_inhabitants": getattr(building_info, 'max_inhabitants', 0),
-            "max_workers": getattr(building_info, 'max_workers', 0)
+            "max_workers": getattr(building_info, 'max_workers', 0),
+            "building_instance": building_info,
+            "unemployed_villagers": unemployed_villagers
         }
+
+        # Estado para controlar se tá escolhendo trabalhadores
+        self.selecting_workers = False
 
     def close_building_popup(self):
         """Fecha o popup de construção selecionada"""
         self.selected_building_popup_open = False
         self.selected_building_info = None
         self.selected_building_data = None
+        self.selecting_workers = False
         
         # Remove a referência ao retângulo também
         if hasattr(self, 'selected_building_popup_rect'):
             delattr(self, 'selected_building_popup_rect')
+
+        if hasattr(self, 'worker_selector_buttons'):
+            delattr(self, 'worker_selector_buttons')
+        
+        if hasattr(self, 'cancel_worker_selector_rect'):
+            delattr(self, 'cancel_worker_selector_rect')
 
     def draw_selected_building_popup(self, surface):
         """Desenha o popup da construção selecionada"""
@@ -1263,19 +1280,22 @@ class HUD:
         
         screen_width, screen_height = surface.get_size()
         
+        # Aumenta a altura do popup para acomodar trabalhadores
+        popup_height = 400 if self.selected_building_data["max_workers"] > 0 else 300
+        
         # Calcula posição centralizada
         popup_x = (screen_width - self.selected_building_popup_width) // 2
-        popup_y = (screen_height - self.selected_building_popup_height) // 2
+        popup_y = (screen_height - popup_height) // 2
         
         popup_rect = pygame.Rect(
             popup_x, popup_y,
             self.selected_building_popup_width,
-            self.selected_building_popup_height
+            popup_height
         )
         
         # Fundo do popup
         popup_surf = pygame.Surface(
-            (self.selected_building_popup_width, self.selected_building_popup_height),
+            (self.selected_building_popup_width, popup_height),
             pygame.SRCALPHA
         )
         popup_surf.fill((50, 50, 60, self.selected_building_popup_alpha))
@@ -1310,8 +1330,10 @@ class HUD:
         # Descrição
         desc_font = pygame.font.SysFont(None, 18)
         description = self.selected_building_data["description"]
+        y_pos = 70
+        
         if description:
-            # Quebra a descrição em várias linhas se precisar (deu um trabalhasso)
+            # Quebra a descrição em várias linhas
             words = description.split()
             lines = []
             current_line = []
@@ -1328,7 +1350,6 @@ class HUD:
                 lines.append(' '.join(current_line))
             
             # Desenha cada linha
-            y_pos = 70
             for line in lines:
                 line_surf = desc_font.render(line, True, (220, 220, 220))
                 popup_surf.blit(line_surf, (20, y_pos))
@@ -1337,16 +1358,15 @@ class HUD:
         # Posição
         pos_font = pygame.font.SysFont(None, 16)
         pos_text = pos_font.render(
-            f"{self.i18n.get("ui.position", "Position")}: ({self.selected_building_data['position'][0]}, {self.selected_building_data['position'][1]})",
+            f"{self.i18n.get('ui.position', 'Position')}: ({self.selected_building_data['position'][0]}, {self.selected_building_data['position'][1]})",
             True,
             (180, 180, 200)
         )
         popup_surf.blit(pos_text, (20, y_pos + 10))
+        y_pos += 35
         
         # Se for uma casa, mostra slots de moradores
         if self.selected_building_data["type"] == "house":
-            y_pos += 40
-            
             # Título dos moradores
             residents_title = desc_font.render(
                 self.i18n.get("ui.residents", "Residents"),
@@ -1356,7 +1376,7 @@ class HUD:
             popup_surf.blit(residents_title, (20, y_pos))
             y_pos += 30
             
-            # Slots de moradores (eles são placeholders por enquanto)
+            # Slots de moradores
             max_inhabitants = self.selected_building_data["max_inhabitants"]
             current_inhabitants = len(self.selected_building_data["inhabitants"])
             
@@ -1384,10 +1404,34 @@ class HUD:
                     # Slot ocupado
                     villager = self.selected_building_data["inhabitants"][i]
                     slot_text = desc_font.render(
-                        f"{self.i18n.get("ui.resident", "Resident")}: {getattr(villager, 'name', 'Unknown')}",
+                        f"{self.i18n.get('ui.resident', 'Resident')}: {getattr(villager, 'name', 'Unknown')}",
                         True,
                         (150, 220, 150)
                     )
+                    popup_surf.blit(slot_text, (30, slot_y + 8))
+                    
+                    # Botão de remover (X)
+                    remove_button_rect = pygame.Rect(280, slot_y + 5, 20, 20)
+                    pygame.draw.rect(
+                        popup_surf,
+                        (130, 80, 80),
+                        remove_button_rect,
+                        border_radius=10
+                    )
+                    pygame.draw.rect(
+                        popup_surf,
+                        (180, 120, 120),
+                        remove_button_rect,
+                        1,
+                        border_radius=10
+                    )
+                    
+                    # X para remover
+                    remove_font = pygame.font.SysFont(None, 16)
+                    remove_text = remove_font.render("×", True, (255, 255, 255))
+                    remove_rect = remove_text.get_rect(center=remove_button_rect.center)
+                    popup_surf.blit(remove_text, remove_rect)
+                    
                 else:
                     # Slot vazio
                     slot_text = desc_font.render(
@@ -1395,11 +1439,9 @@ class HUD:
                         True,
                         (180, 180, 180)
                     )
-                
-                popup_surf.blit(slot_text, (30, slot_y + 8))
-                
-                # Botão de adicionar (apenas pra slots vazios)
-                if i >= current_inhabitants:
+                    popup_surf.blit(slot_text, (30, slot_y + 8))
+                    
+                    # Botão de adicionar (apenas pra slots vazios)
                     add_button_rect = pygame.Rect(280, slot_y + 5, 20, 20)
                     
                     # Desenha botão de +
@@ -1422,6 +1464,112 @@ class HUD:
                     plus_text = plus_font.render("+", True, (255, 255, 255))
                     plus_rect = plus_text.get_rect(center=add_button_rect.center)
                     popup_surf.blit(plus_text, plus_rect)
+            
+            y_pos += max_inhabitants * 35 + 20
+        
+        # Se for um prédio que pode ter trabalhadores, mostra os trabalhadores
+        if self.selected_building_data["max_workers"] > 0:
+            # Título dos trabalhadores
+            workers_title = desc_font.render(
+                self.i18n.get("ui.workers", "Workers"),
+                True,
+                (220, 220, 220)
+            )
+            popup_surf.blit(workers_title, (20, y_pos))
+            y_pos += 30
+            
+            # Slots de trabalhadores
+            max_workers = self.selected_building_data["max_workers"]
+            current_workers = len(self.selected_building_data["workers"])
+            
+            for i in range(max_workers):
+                slot_y = y_pos + (i * 35)
+                
+                # Fundo do slot
+                slot_rect = pygame.Rect(20, slot_y, 250, 30)
+                pygame.draw.rect(
+                    popup_surf,
+                    (70, 70, 80),
+                    slot_rect,
+                    border_radius=4
+                )
+                pygame.draw.rect(
+                    popup_surf,
+                    (100, 100, 120),
+                    slot_rect,
+                    1,
+                    border_radius=4
+                )
+                
+                # Texto do slot
+                if i < current_workers:
+                    # Slot ocupado
+                    worker = self.selected_building_data["workers"][i]
+                    slot_text = desc_font.render(
+                        f"{self.i18n.get('ui.worker', 'Worker')}: {getattr(worker, 'name', 'Unknown')}",
+                        True,
+                        (150, 220, 150)
+                    )
+                    popup_surf.blit(slot_text, (30, slot_y + 8))
+                    
+                    # Botão de remover (X)
+                    remove_button_rect = pygame.Rect(280, slot_y + 5, 20, 20)
+                    pygame.draw.rect(
+                        popup_surf,
+                        (130, 80, 80),
+                        remove_button_rect,
+                        border_radius=10
+                    )
+                    pygame.draw.rect(
+                        popup_surf,
+                        (180, 120, 120),
+                        remove_button_rect,
+                        1,
+                        border_radius=10
+                    )
+                    
+                    # X para remover
+                    remove_font = pygame.font.SysFont(None, 16)
+                    remove_text = remove_font.render("×", True, (255, 255, 255))
+                    remove_rect = remove_text.get_rect(center=remove_button_rect.center)
+                    popup_surf.blit(remove_text, remove_rect)
+                    
+                else:
+                    # Slot vazio
+                    slot_text = desc_font.render(
+                        self.i18n.get("ui.empty_slot", "Empty"),
+                        True,
+                        (180, 180, 180)
+                    )
+                    popup_surf.blit(slot_text, (30, slot_y + 8))
+                    
+                    # Botão de adicionar (apenas pra slots vazios)
+                    add_button_rect = pygame.Rect(280, slot_y + 5, 20, 20)
+                    
+                    # Desenha botão de +
+                    pygame.draw.rect(
+                        popup_surf,
+                        (80, 130, 80),
+                        add_button_rect,
+                        border_radius=10
+                    )
+                    pygame.draw.rect(
+                        popup_surf,
+                        (120, 180, 120),
+                        add_button_rect,
+                        1,
+                        border_radius=10
+                    )
+                    
+                    # Sinal de +
+                    plus_font = pygame.font.SysFont(None, 18)
+                    plus_text = plus_font.render("+", True, (255, 255, 255))
+                    plus_rect = plus_text.get_rect(center=add_button_rect.center)
+                    popup_surf.blit(plus_text, plus_rect)
+        
+        # Se estiver selecionando trabalhadores, desenha o seletor
+        if self.selecting_workers:
+            self.draw_worker_selector(popup_surf, popup_rect)
         
         # Botão de fechar
         close_button_rect = pygame.Rect(
@@ -1453,6 +1601,134 @@ class HUD:
         
         # Salva a posição do popup para cliques
         self.selected_building_popup_rect = popup_rect
+        self.selected_building_popup_height = popup_height  # Atualiza a altura
+
+    def draw_worker_selector(self, popup_surf, popup_rect):
+        """Desenha um popup para selecionar trabalhadores desempregados"""
+        # Calcula altura dinâmica baseada no número de desempregados
+        button_height = 30
+        button_spacing = 5
+        padding_top = 40
+        padding_bottom = 10
+        
+        unemployed_villagers = self.selected_building_data.get("unemployed_villagers", [])
+        num_villagers = len(unemployed_villagers)
+        
+        # Se não houver desempregados, mostra mensagem
+        if num_villagers == 0:
+            selector_height = padding_top + 50 + padding_bottom
+        else:
+            selector_height = padding_top + (button_height * num_villagers) + (button_spacing * (num_villagers - 1)) + padding_bottom
+        
+        selector_width = 250
+        
+        selector_x = (popup_rect.width - selector_width) // 2
+        selector_y = (popup_rect.height - selector_height) // 2
+        
+        # Fundo do seletor
+        selector_rect = pygame.Rect(selector_x, selector_y, selector_width, selector_height)
+        pygame.draw.rect(popup_surf, (30, 30, 40, 240), selector_rect, border_radius=8)
+        pygame.draw.rect(popup_surf, (100, 100, 150), selector_rect, 2, border_radius=8)
+        
+        # Título
+        title_font = pygame.font.SysFont(None, 22)
+        title_text = self.i18n.get("ui.select_worker", "Select Worker")
+        title = title_font.render(title_text, True, (255, 255, 255))
+        popup_surf.blit(title, (selector_x + 10, selector_y + 10))
+        
+        # Se não houver desempregados
+        if num_villagers == 0:
+            no_workers_font = pygame.font.SysFont(None, 18)
+            no_workers_text = self.i18n.get("ui.no_unemployed_villagers", "No unemployed villagers")
+            no_workers = no_workers_font.render(no_workers_text, True, (200, 200, 200))
+            popup_surf.blit(no_workers, (selector_x + 20, selector_y + padding_top))
+            
+            # Botão de cancelar
+            cancel_button_rect = pygame.Rect(
+                selector_x + (selector_width - 100) // 2,
+                selector_y + padding_top + 30,
+                100, 30
+            )
+            
+            pygame.draw.rect(popup_surf, (80, 80, 80), cancel_button_rect, border_radius=4)
+            pygame.draw.rect(popup_surf, (120, 120, 120), cancel_button_rect, 1, border_radius=4)
+            
+            cancel_font = pygame.font.SysFont(None, 18)
+            cancel_text = self.i18n.get("ui.cancel", "Cancel")
+            cancel = cancel_font.render(cancel_text, True, (255, 255, 255))
+            cancel_rect = cancel.get_rect(center=cancel_button_rect.center)
+            popup_surf.blit(cancel, cancel_rect)
+            
+            # Salva o retângulo do botão de cancelar
+            self.cancel_worker_selector_rect = pygame.Rect(
+                popup_rect.x + cancel_button_rect.x,
+                popup_rect.y + cancel_button_rect.y,
+                cancel_button_rect.width,
+                cancel_button_rect.height
+            )
+            
+            return
+        
+        # Botões dos aldeões desempregados
+        button_font = pygame.font.SysFont(None, 18)
+        button_y = selector_y + padding_top
+        
+        for i, villager in enumerate(unemployed_villagers):
+            button_rect = pygame.Rect(
+                selector_x + 20,
+                button_y + i * (button_height + button_spacing),
+                selector_width - 40,
+                button_height
+            )
+            
+            # Fundo do botão
+            pygame.draw.rect(popup_surf, (60, 60, 70), button_rect, border_radius=4)
+            pygame.draw.rect(popup_surf, (100, 100, 150), button_rect, 1, border_radius=4)
+            
+            # Nome do aldeão
+            villager_name = getattr(villager, 'full_name', f"Villager {i+1}")
+            villager_text = button_font.render(villager_name, True, (220, 220, 220))
+            text_rect = villager_text.get_rect(center=button_rect.center)
+            popup_surf.blit(villager_text, text_rect)
+            
+            # Salva os retângulos para cliques (coordenadas relativas ao popup principal)
+            if not hasattr(self, 'worker_selector_buttons'):
+                self.worker_selector_buttons = []
+            
+            # Converte para coordenadas da tela
+            self.worker_selector_buttons.append({ 
+                'rect': pygame.Rect(
+                    popup_rect.x + button_rect.x,
+                    popup_rect.y + button_rect.y,
+                    button_rect.width,
+                    button_rect.height
+                ),
+                'villager': villager
+            })
+        
+        # Botão de cancelar
+        cancel_button_rect = pygame.Rect(
+            selector_x + (selector_width - 100) // 2,
+            button_y + num_villagers * (button_height + button_spacing) + 10,
+            100, 30
+        )
+        
+        pygame.draw.rect(popup_surf, (80, 80, 80), cancel_button_rect, border_radius=4)
+        pygame.draw.rect(popup_surf, (120, 120, 120), cancel_button_rect, 1, border_radius=4)
+        
+        cancel_font = pygame.font.SysFont(None, 18)
+        cancel_text = self.i18n.get("ui.cancel", "Cancel")
+        cancel = cancel_font.render(cancel_text, True, (255, 255, 255))
+        cancel_rect = cancel.get_rect(center=cancel_button_rect.center)
+        popup_surf.blit(cancel, cancel_rect)
+        
+        # Salva o retângulo do botão de cancelar
+        self.cancel_worker_selector_rect = pygame.Rect(
+            popup_rect.x + cancel_button_rect.x,
+            popup_rect.y + cancel_button_rect.y,
+            cancel_button_rect.width,
+            cancel_button_rect.height
+        )
 
     def handle_building_popup_click(self, mouse_pos):
         """Lida com cliques no popup de construção"""
@@ -1462,6 +1738,41 @@ class HUD:
         # Verifica se clicou fora do popup
         if not hasattr(self, 'selected_building_popup_rect'):
             return None
+        
+        # Se estiver selecionando trabalhadores, processa primeiro
+        if self.selecting_workers:
+            # Verifica se clicou no botão de cancelar
+            if hasattr(self, 'cancel_worker_selector_rect') and self.cancel_worker_selector_rect.collidepoint(mouse_pos):
+                self.selecting_workers = False
+                self.worker_selector_buttons = []
+                return "worker_selector_closed"
+            
+            # Verifica se clicou em um aldeão desempregado
+            if hasattr(self, 'worker_selector_buttons'):
+                for button_data in self.worker_selector_buttons:
+                    if button_data['rect'].collidepoint(mouse_pos):
+                        villager = button_data['villager']
+                        building = self.selected_building_data.get("building_instance")
+                        
+                        # Adiciona o aldeão como trabalhador
+                        if building and hasattr(building, 'add_worker'):
+                            if building.add_worker(villager):
+                                # Atualiza a lista de trabalhadores no popup
+                                self.selected_building_data["workers"] = building.workers
+                                self.selected_building_data["unemployed_villagers"] = [
+                                    v for v in self.selected_building_data["unemployed_villagers"]
+                                    if v != villager
+                                ]
+                                print(f"{villager.full_name} agora trabalha no(a) {self.selected_building_data['name']}")
+                        
+                        self.selecting_workers = False
+                        self.worker_selector_buttons = []
+                        return f"worker_added_{villager.full_name}"
+            
+            # Clicou fora do seletor de trabalhadores
+            self.selecting_workers = False
+            self.worker_selector_buttons = None
+            return "worker_selector_closed"
         
         # Verifica se clicou dentro do popup
         if not self.selected_building_popup_rect.collidepoint(mouse_pos):
@@ -1482,24 +1793,114 @@ class HUD:
                 self.close_building_popup()
                 return "building_popup_closed"
         
-        # Verifica se clicou em algum botão de adicionar morador
+        # Verifica se clicou em algum botão de moradores (casas)
         if self.selected_building_data and self.selected_building_data["type"] == "house":
             max_inhabitants = self.selected_building_data["max_inhabitants"]
             current_inhabitants = len(self.selected_building_data["inhabitants"])
             
-            for i in range(current_inhabitants, max_inhabitants):
+            for i in range(max_inhabitants):
                 slot_y = self.selected_building_popup_rect.y + 160 + (i * 35)
-                add_button_rect = pygame.Rect(
-                    self.selected_building_popup_rect.x + 280,
-                    slot_y + 5,
-                    20, 20
-                )
                 
-                if add_button_rect.collidepoint(mouse_pos):
-                    return f"add_inhabitant_slot_{i}"
+                if i < current_inhabitants:
+                    # Botão de remover morador (X)
+                    remove_button_rect = pygame.Rect(
+                        self.selected_building_popup_rect.x + 280,
+                        slot_y + 5,
+                        20, 20
+                    )
+                    
+                    if remove_button_rect.collidepoint(mouse_pos):
+                        # Remove o morador
+                        villager = self.selected_building_data["inhabitants"][i]
+                        building = self.selected_building_data.get("building_instance")
+                        
+                        if building and hasattr(building, 'remove_inhabitant'):
+                            if building.remove_inhabitant(villager):
+                                # Atualiza a lista de habitantes
+                                self.selected_building_data["inhabitants"] = building.inhabitants
+                                print(f"{villager.full_name} removido da casa")
+                        
+                        return f"remove_inhabitant_slot_{i}"
+                else:
+                    # Botão de adicionar morador (+)
+                    add_button_rect = pygame.Rect(
+                        self.selected_building_popup_rect.x + 280,
+                        slot_y + 5,
+                        20, 20
+                    )
+                    
+                    if add_button_rect.collidepoint(mouse_pos):
+                        # TODO: Implementar seletor de moradores desempregados para casas
+                        print(f"Adicionar morador no slot {i}")
+                        return f"add_inhabitant_slot_{i}"
+        
+        # Verifica se clicou em algum botão de trabalhadores
+        if self.selected_building_data and self.selected_building_data["max_workers"] > 0:
+            # Calcula a posição inicial dos slots de trabalhadores
+            # (depende se é uma casa ou outro prédio)
+            if self.selected_building_data["type"] == "house":
+                workers_start_y = self.selected_building_popup_rect.y + 160 + (max_inhabitants * 35) + 50
+            else:
+                workers_start_y = self.selected_building_popup_rect.y + 160
+            
+            max_workers = self.selected_building_data["max_workers"]
+            current_workers = len(self.selected_building_data["workers"])
+            
+            for i in range(max_workers):
+                slot_y = workers_start_y + (i * 35)
+                
+                if i < current_workers:
+                    # Botão de remover trabalhador (X)
+                    remove_button_rect = pygame.Rect(
+                        self.selected_building_popup_rect.x + 280,
+                        slot_y + 5,
+                        20, 20
+                    )
+                    
+                    if remove_button_rect.collidepoint(mouse_pos):
+                        # Remove o trabalhador
+                        worker = self.selected_building_data["workers"][i]
+                        building = self.selected_building_data.get("building_instance")
+                        
+                        if building and hasattr(building, 'remove_worker'):
+                            if building.remove_worker(worker):
+                                # Atualiza a lista de trabalhadores
+                                self.selected_building_data["workers"] = building.workers
+                                
+                                # Adiciona à lista de desempregados
+                                if worker not in self.selected_building_data["unemployed_villagers"]:
+                                    self.selected_building_data["unemployed_villagers"].append(worker)
+                                
+                                print(f"{worker.full_name} removido do trabalho no(a) {self.selected_building_data['name']}")
+                        
+                        return f"remove_worker_slot_{i}"
+                else:
+                    # Botão de adicionar trabalhador (+)
+                    add_button_rect = pygame.Rect(
+                        self.selected_building_popup_rect.x + 280,
+                        slot_y + 5,
+                        20, 20
+                    )
+                    
+                    if add_button_rect.collidepoint(mouse_pos):
+                        # Abre o seletor de trabalhadores desempregados
+                        self.selecting_workers = True
+
+                        # Inicializa a lista de botões
+                        self.worker_selector_buttons = []
+
+                        # Coleta aldeões desempregados do mundo
+                        building_instance = self.selected_building_data.get("building_instance")
+                        if building_instance and hasattr(building_instance, 'world'):
+                            self.selected_building_data["unemployed_villagers"] = [
+                                v for v in building_instance.world.villagers 
+                                if not hasattr(v, 'workplace') or not v.workplace
+                            ]
+                        return f"add_worker_slot_{i}"
         
         # Clicou dentro do popup, mas não em nenhum botão específico
         return "building_popup_clicked_inside"
+
 
 class HUDButton:
     def __init__(self, rect, icon, action=None, data=None):

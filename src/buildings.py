@@ -21,8 +21,11 @@ class BuildingInstance:
         self.workers = []      # Lista de aldeões que trabalham aqui
         self.max_inhabitants = 0
         self.max_workers = 0
-        self.production_rate = {}  # Recursos produzidos por dia
-        self.consumption_rate = {} # Recursos consumidos por dia
+        self.base_production_per_worker = {}  # Recursos produzidos por dia por trabalhador
+
+        # Armazenamento de recursos (para prédios de produção)
+        self.stored_resources = {}
+        self.storage_capacity = 100  # Capacidade de armazenamento
         
         # Inicializa os atributos baseados no tipo
         self._initialize_attributes()
@@ -42,7 +45,7 @@ class BuildingInstance:
             self.base_production_per_worker = {ResourceType.WOOD: 2}  # 2 madeiras por trabalhador por dia
             
         elif self.type == BuildingType.TOWNHALL:
-            self.max_inhabitants = 10  # A prefeitura pode abrigar alguns habitantes
+            self.max_inhabitants = 0
             self.max_workers = 2  # Administradores da cidade (vão atrair imigrantes depois, talvez)
             self.base_production_per_worker = {}  # Prefeitura não produz nadica (ainda)
             
@@ -50,6 +53,24 @@ class BuildingInstance:
             self.max_inhabitants = 0
             self.max_workers = 0
             self.base_production_per_worker = {}
+
+        # Inicializa armazenamento vazio
+        for res in [ResourceType.WOOD, ResourceType.STONE, ResourceType.FOOD, ResourceType.GOLD]:
+            self.stored_resources[res] = 0
+
+    def add_resource(self, resource_type, amount):
+        """Adiciona recurso ao armazenamento do prédio"""
+        if self.stored_resources.get(resource_type, 0) + amount <= self.storage_capacity:
+            self.stored_resources[resource_type] = self.stored_resources.get(resource_type, 0) + amount
+            return True
+        return False
+    
+    def take_resource(self, resource_type, amount):
+        """Remove recurso do armazenamento do prédio"""
+        if self.stored_resources.get(resource_type, 0) >= amount:
+            self.stored_resources[resource_type] -= amount
+            return True
+        return False
 
     def calculate_daily_production(self):
         """Calcula a produção diária baseada no número de trabalhadores"""
@@ -60,8 +81,8 @@ class BuildingInstance:
         
         for resource, amount_per_worker in self.base_production_per_worker.items():
             if self.workers:
-                # Produção = base por trabalhador × numero de trabalhadores × modificador
-                total_amount = amount_per_worker * len(self.workers) * self.production_modifier
+                # Produção = base por trabalhador × numero de trabalhadores
+                total_amount = amount_per_worker * len(self.workers)
                 daily_production[resource] = int(total_amount)
         
         return daily_production

@@ -9,7 +9,7 @@ from tiles import TileType, TILE_DATA
 from buildings import get_building_data, BuildingInstance, BuildingType
 from decorations import Tree
 from villager import Villager
-from time_manager import TimeManager 
+from time_manager import TimeManager
 
 class World:
     def __init__(self):
@@ -133,8 +133,42 @@ class World:
                         for tx in range(x, x + tree.width):
                             self.occupied_tiles.add((tx, ty))
 
+    def get_tree_at_tile(self, tile_x, tile_y):
+        """Retorna a árvore no tile especificado (se houver)"""
+        for deco in self.decorations:
+            if hasattr(deco, 'type') and deco.type == "tree":
+                # Verifica se o tile tá dentro da área da árvore
+                if (deco.x <= tile_x < deco.x + deco.width and
+                    deco.y - (deco.height - 1) <= tile_y <= deco.y):
+                    return deco
+        return None
+
+    def remove_cut_trees(self):
+        """Remove árvores que foram completamente cortadas do mundo"""
+        trees_to_remove = []
+        
+        for deco in self.decorations:
+            if hasattr(deco, 'type') and deco.type == "tree" and deco.is_cut:
+                # Marca os tiles como desocupados
+                for ty in range(deco.y - (deco.height - 1), deco.y + 1):
+                    for tx in range(deco.x, deco.x + deco.width):
+                        if (tx, ty) in self.occupied_tiles:
+                            self.occupied_tiles.remove((tx, ty))
+                trees_to_remove.append(deco)
+        
+        # Remove as árvores
+        for tree in trees_to_remove:
+            self.decorations.remove(tree)
+            print(f"Árvore em ({tree.x}, {tree.y}) removida do mundo")
+        
+        return len(trees_to_remove)
+
     def update(self, dt, game_state):
         """Atualiza o mundo (incluindo tempo e aldeões)"""
+        # Atualiza pathfinder stats periodicamente
+        if hasattr(self.pathfinder, 'print_stats'):
+            self.pathfinder.print_stats()
+
         # Atualiza o tempo
         new_day_started = self.time_manager.update(dt)
         
@@ -144,6 +178,11 @@ class World:
         # Atualiza os aldeões
         for villager in self.villagers:
             villager.update(dt, self)
+
+        # Remove árvores cortadas
+        trees_removed = self.remove_cut_trees()
+        if trees_removed > 0:
+            print(f"Removidas {trees_removed} árvores cortadas")
         
         # Atualiza a população no game_state a cada frame
         # meio pesado, mas garante que o HUD sempre mostre valores atualizados
@@ -369,6 +408,7 @@ class World:
         )
 
         building = BuildingInstance(building_type, tile_x, tile_y, sprite)
+        building.world = self
         self.buildings.append(building)
 
         # Marca os tiles ocupados
@@ -381,26 +421,25 @@ class World:
             self._spawn_townhall_villagers(building, game_state)
         elif building_type == BuildingType.HOUSE:
             self._assign_villagers_to_house(building, game_state)
+            # Tenta atribuir aldeões sem casa nas casas existentes
+            self.assign_homeless_to_houses()
 
         return True
     
     def _spawn_townhall_villagers(self, townhall, game_state):
         """Spawna 3 aldeões quando uma prefeitura é construída"""
-
         print(f"DEBUG: Tentando spawnar aldeões para prefeitura")
         print(f"DEBUG: Townhall type: {townhall.type}")
         print(f"DEBUG: Townhall pos: ({townhall.x}, {townhall.y})")
 
-        # Verifica se o building tem os atributos necessários
-        if not hasattr(townhall, 'size'):
-            print(f"DEBUG: Townhall não tem atributo 'size'")
-            # Usa o tamanho padrão da prefeitura
-            building_data = self.building_data.get(townhall.type, {})
-            building_size = building_data.get("size", (8, 6))
-        else:
-            building_size = townhall.size
-            
-        print(f"DEBUG: Townhall size: {building_size}")
+        # Prefeitura não é mais moradia, apenas local de trabalho
+        # Mas os aldeões ainda precisam de moradia
+        available_houses = []
+        for building in self.buildings:
+            if building.type == BuildingType.HOUSE and building.has_space_for_inhabitants:
+                available_houses.append(building)
+        
+        print(f"DEBUG: Casas disponíveis com espaço: {len(available_houses)}")
 
         for i in range(3):
             # Encontra uma posição próxima à prefeitura
@@ -409,21 +448,35 @@ class World:
             )
             
             if spawn_x is not None and spawn_y is not None:
-                # Cria aldeão
-                villager = Villager(spawn_x, spawn_y, home_building=townhall)
+                # Cria aldeão com nome e sobrenome
+                villager = Villager(spawn_x, spawn_y)
                 self.villagers.append(villager)
                 
-                # Tenta atribuir à prefeitura como moradia (se tiver espaço)
-                if hasattr(townhall, 'add_inhabitant') and hasattr(townhall, 'has_space_for_inhabitants'):
-                    if townhall.has_space_for_inhabitants:
-                        townhall.add_inhabitant(villager)
-                        print(f"DEBUG: Aldeão {villager.name} atribuído à prefeitura")
+                # Tenta atribuir à prefeitura como trabalho 
+                # desativado, pq fala sério começar com trabalhador na prefeitura
+                #if hasattr(townhall, 'add_worker') and hasattr(townhall, 'has_space_for_workers'):
+                #    if townhall.has_space_for_workers:
+                #        townhall.add_worker(villager)
+                #        print(f"DEBUG: Aldeão {villager.full_name} atribuído à prefeitura como trabalhador")
+                #    else:
+                #        print(f"DEBUG: Prefeitura não tem espaço para mais trabalhadores")
+                
+                # Tenta atribuir a uma casa disponível
+                if available_houses:
+                    # Encontra a casa com mais espaço disponível
+                    for house in available_houses:
+                        if house.add_inhabitant(villager):
+                            print(f"DEBUG: Aldeão {villager.full_name} atribuído à casa")
+                            # Remove a casa da lista se estiver cheia
+                            if not house.has_space_for_inhabitants:
+                                available_houses.remove(house)
+                            break
                     else:
-                        print(f"DEBUG: Prefeitura não tem espaço para mais habitantes")
+                        print(f"DEBUG: Não foi possível alocar {villager.full_name} em uma casa")
                 else:
-                    print(f"DEBUG: Townhall não tem métodos de habitantes")
-
-                print(f"Aldeão {villager.name} spawnou na prefeitura")
+                    print(f"DEBUG: {villager.full_name} ficou sem casa")
+                
+                print(f"Aldeão {villager.full_name} spawnou na prefeitura")
                 self.update_population_in_game_state(game_state)
             else:
                 print(f"DEBUG: Não encontrou tile vazio para spawnar aldeão")
@@ -440,11 +493,14 @@ class World:
         
         print(f"DEBUG: Aldeões sem casa: {len(homeless_villagers)}")
         
+        # Ordena por tempo sem casa (opcional, vai ter prioridade dps)
         for villager in homeless_villagers:
             if hasattr(house, 'add_inhabitant') and hasattr(house, 'has_space_for_inhabitants'):
                 if house.has_space_for_inhabitants:
-                    house.add_inhabitant(villager)
-                    print(f"{villager.name} mudou-se para uma nova casa")
+                    if house.add_inhabitant(villager):
+                        print(f"{villager.full_name} mudou-se para uma nova casa")
+                    else:
+                        print(f"DEBUG: Não foi possível adicionar {villager.full_name} à casa")
                 else:
                     print(f"DEBUG: Casa não tem mais espaço")
                     break
@@ -454,7 +510,33 @@ class World:
         
         # Atualiza a população no game_state
         self.update_population_in_game_state(game_state)
-    
+
+    def assign_homeless_to_houses(self):
+        """Tenta atribuir todos os aldeões sem casa às casas disponíveis"""
+        # Coleta todas as casas com espaço
+        available_houses = []
+        for building in self.buildings:
+            if building.type == BuildingType.HOUSE and building.has_space_for_inhabitants:
+                available_houses.append(building)
+        
+        # Coleta todos os aldeões sem casa
+        homeless_villagers = []
+        for villager in self.villagers:
+            if not hasattr(villager, 'home_building') or not villager.home_building:
+                homeless_villagers.append(villager)
+        
+        # Tenta atribuir cada aldeão a uma casa
+        for villager in homeless_villagers:
+            for house in available_houses:
+                if house.add_inhabitant(villager):
+                    print(f"{villager.full_name} foi alocado para uma casa")
+                    # Remove a casa da lista se estiver cheia
+                    if not house.has_space_for_inhabitants:
+                        available_houses.remove(house)
+                    break
+            else:
+                print(f"{villager.full_name} permanece sem casa")
+        
     def _find_nearby_empty_tile(self, center_x, center_y, width, height, max_radius=5):
         """Encontra um tile vazio próximo a uma construção"""
         for radius in range(1, max_radius + 1):
@@ -493,7 +575,15 @@ class World:
             "total": with_housing + without_housing
         }
         
-        print(f"DEBUG: População atualizada: {with_housing} com casa, {without_housing} sem casa")
+        #print(f"DEBUG: População atualizada: {with_housing} com casa, {without_housing} sem casa")
+
+    def get_unemployed_villagers(self):
+        """Retorna lista de aldeões desempregados"""
+        unemployed = []
+        for villager in self.villagers:
+            if not hasattr(villager, 'workplace') or not villager.workplace:
+                unemployed.append(villager)
+        return unemployed
 
     def get_entity_at_tile(self, tile_x, tile_y):
         """Retorna a construção que está no tile especificado"""
